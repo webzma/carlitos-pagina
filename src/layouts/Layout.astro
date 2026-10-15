@@ -1,0 +1,58 @@
+---
+import "../styles/global.css";
+import Header from "../components/Header.astro";
+import Footer from "../components/Footer.astro";
+import { SITE } from "../data/config";
+
+interface Props {
+  title?: string;
+  description?: string;
+  links: { href: string; label: string }[];
+}
+
+const {
+  title,
+  description = `${SITE.marca}: participa en nuestras rifas con loterías oficiales. Compra tus boletos y gana.`,
+  links,
+} = Astro.props;
+---
+
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title ? `${title} | ${SITE.marca}` : `${SITE.marca} | Rifas en línea`}</title>
+    <meta name="description" content={description} />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Poppins:wght@400;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <Header links={links} />
+    <main>
+      <slot />
+    </main>
+    <Footer />
+    <div class="toast" id="toast"></div>
+
+    <script>
+      import { toast } from "../scripts/ui";
+
+      // Botones "Copiar" en cualquier parte de la página
+      document.addEventListener("click", (e) => {
+        const b = (e.target as HTMLElement).closest<HTMLElement>("[data-copy]");
+        if (!b) return;
+        const text = b.dataset.copy!;
+        navigator.clipboard?.writeText(text).then(
+          () => toast(`Copiado: ${text}`),
+          () => toast("No se pudo copiar"),
+        );
+      });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,26 @@
+---
+const preguntas = [
+  ["¿Cómo sé que el sorteo es real?", "Todos nuestros sorteos se realizan con los resultados de una lotería oficial, publicada en la fecha indicada. Además, transmitimos en vivo por Instagram."],
+  ["¿Cuánto tiempo tengo para pagar mis boletos?", "Los boletos apartados se reservan por 3 horas. Si no recibimos el comprobante en ese tiempo, vuelven a estar disponibles."],
+  ["¿Cómo verifico mis boletos?", "En la página de la rifa, ve a “Verificador” e ingresa tu número de teléfono o el número de tu boleto."],
+  ["¿Cómo entregan los premios?", "Contactamos al ganador por WhatsApp el mismo día. Los premios en efectivo se pagan por el método que prefieras; los físicos se entregan en persona o por envío."],
+  ["¿Puedo participar desde otro país?", "¡Claro! Aceptamos pagos desde Venezuela, Colombia, Perú, España, EE. UU. y cripto vía Binance."],
+];
+---
+
+<section class="section" id="preguntas" style="padding-top:0">
+  <div class="container">
+    <h2 class="section-title">PREGUNTAS <span>FRECUENTES</span></h2>
+    <p class="section-sub">Todo lo que necesitas saber</p>
+    <div class="faq">
+      {
+        preguntas.map(([q, a]) => (
+          <details>
+            <summary>{q}</summary>
+            <p>{a}</p>
+          </details>
+        ))
+      }
+    </div>
+  </div>
+</section>

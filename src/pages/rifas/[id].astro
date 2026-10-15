@@ -1,0 +1,257 @@
+---
+import Layout from "../../layouts/Layout.astro";
+import Accounts from "../../components/Accounts.astro";
+import { RIFAS, CUENTAS, SITE, premiosDe, paquetesDe, money, fmtDate } from "../../data/config";
+
+export function getStaticPaths() {
+  return RIFAS.map((rifa) => ({ params: { id: rifa.id }, props: { rifa } }));
+}
+
+const { rifa } = Astro.props;
+const activa = rifa.estado === "activa";
+const premios = premiosDe(rifa);
+const paquetes = paquetesDe(rifa);
+
+// Datos que necesita el script del navegador
+const clientData = {
+  id: rifa.id,
+  titulo: rifa.titulo,
+  precio: rifa.precio,
+  totalBoletos: rifa.totalBoletos,
+  vendidosPct: rifa.vendidosPct,
+  fecha: rifa.fecha,
+  paquetes,
+  cuentas: CUENTAS,
+  whatsapp: SITE.whatsapp,
+  moneda: SITE.moneda,
+};
+
+const links = [
+  { href: "/", label: "INICIO" },
+  { href: "#boletos", label: "BOLETOS" },
+  { href: "#premios", label: "PREMIOS" },
+  { href: "#verificador", label: "VERIFICADOR" },
+  { href: "#sorteador", label: "SORTEADOR" },
+  { href: "#contacto", label: "CONTACTO" },
+];
+
+const paises = [
+  ["58", "🇻🇪"], ["57", "🇨🇴"], ["51", "🇵🇪"], ["56", "🇨🇱"],
+  ["1", "🇺🇸"], ["34", "🇪🇸"], ["52", "🇲🇽"], ["593", "🇪🇨"],
+];
+---
+
+<Layout title={rifa.titulo} description={`${rifa.titulo}: ${rifa.descripcion}. Boletos a ${money(rifa.precio)}.`} links={links}>
+  <script type="application/json" id="rifa-data" set:html={JSON.stringify(clientData)} />
+
+  <!-- Resumen -->
+  <section class="raffle-hero">
+    <div class="container raffle-top">
+      <div class="prize-visual">
+        <span class:list={["badge", activa ? "live" : "done"]}>{activa ? "En venta" : "Finalizada"}</span>
+        {rifa.icono}
+      </div>
+      <div class="raffle-info">
+        <h1>{rifa.titulo}</h1>
+        <p class="lead">{rifa.descripcion}</p>
+        <div class="info-grid">
+          <div class="info-box"><span>Precio por boleto</span><strong class="gold">{money(rifa.precio)}</strong></div>
+          <div class="info-box"><span>Fecha del sorteo</span><strong>{fmtDate(rifa.fecha)}</strong></div>
+          <div class="info-box"><span>Juega con</span><strong style="font-size:1rem">{rifa.loteria}</strong></div>
+          <div class="info-box"><span>Disponibles</span><strong id="r-available">—</strong></div>
+        </div>
+        <div class="countdown">
+          <div><b data-cd="d">00</b><small>Días</small></div>
+          <div><b data-cd="h">00</b><small>Horas</small></div>
+          <div><b data-cd="m">00</b><small>Min</small></div>
+          <div><b data-cd="s">00</b><small>Seg</small></div>
+        </div>
+        <div class="progress"><div id="r-progress" style="width:0"></div></div>
+        <div class="progress-label" style="margin-top:6px"><span>Boletos vendidos</span><span id="r-pct">0%</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Selección de boletos -->
+  <section class="section" id="boletos" style="padding-top:30px">
+    <div class="container">
+      <h2 class="section-title">ELIGE TUS <span>BOLETOS</span></h2>
+      {
+        activa ? (
+          <p class="section-sub">Compra un paquete o escoge tus números uno por uno</p>
+        ) : (
+          <p class="section-sub">
+            Esta rifa ya finalizó. 🏆 Ganador: <b style="color:var(--gold)">{rifa.ganador}</b>
+            <br /><br />
+            <a class="btn btn-gold" href="/#rifas">Ver rifas disponibles</a>
+          </p>
+        )
+      }
+
+      {
+        activa && (
+          <div id="buy-area">
+            <div class="packs" id="packs">
+              {paquetes.map((p, i) => (
+                <button class="pack" data-pack={i}>
+                  {p.tag && <span class="tag">{p.tag}</span>}
+                  <b>{p.cant}</b>
+                  <small>boletos</small>
+                  <span class="price">{money(rifa.precio * p.cant * (1 - p.desc))}</span>
+                </button>
+              ))}
+            </div>
+
+            <div class="panel">
+              <div class="picker-tools">
+                <input id="search" type="text" inputmode="numeric" maxlength="3" placeholder="Busca tu número (ej. 777)" />
+                <button class="btn btn-ghost" id="btn-search">Buscar</button>
+                <button class="btn btn-green" id="btn-lucky">🍀 Elegir a la suerte</button>
+                <button class="btn btn-ghost" id="btn-clear">Limpiar</button>
+              </div>
+              <div class="legend">
+                <span><i style="background:var(--bg-2);border:1px solid var(--line)" />Disponible</span>
+                <span><i style="background:var(--gold)" />Seleccionado</span>
+                <span><i style="background:#2a1717;border:1px solid #3d2121" />Vendido</span>
+                <label style="margin-left:auto;cursor:pointer">
+                  <input type="checkbox" id="only-free" style="accent-color:var(--gold)" /> Mostrar solo disponibles
+                </label>
+              </div>
+              <div class="grid-numbers" id="grid" />
+            </div>
+
+            <div class="cart">
+              <div style="flex:1;min-width:200px">
+                <div class="cart-total">
+                  Seleccionados: <b id="sel-count">0</b> · Total: <b id="sel-total">{SITE.moneda}0</b>
+                </div>
+                <div class="cart-chips" id="chips" />
+              </div>
+              <button class="btn btn-gold" id="btn-continue" disabled>Continuar →</button>
+            </div>
+          </div>
+        )
+      }
+    </div>
+  </section>
+
+  <!-- Premios -->
+  <section class="section" id="premios" style="background:var(--bg-2)">
+    <div class="container">
+      <h2 class="section-title">LISTA DE <span>PREMIOS</span></h2>
+      <p class="section-sub">Se sortean con la {rifa.loteria}</p>
+      <div
+        class="prizes-list"
+        style={premios.length < 3 ? "grid-template-columns:minmax(0,420px);justify-content:center" : undefined}
+      >
+        {
+          premios.map((p) => (
+            <div class="prize">
+              <div class="place">{p.lugar}</div>
+              <div class="ico">{p.icono}</div>
+              <h4>{p.titulo}</h4>
+              <p>{p.detalle}</p>
+            </div>
+          ))
+        }
+      </div>
+    </div>
+  </section>
+
+  <!-- Verificador -->
+  <section class="section" id="verificador">
+    <div class="container verify">
+      <h2 class="section-title">VERIFICADOR DE <span>BOLETOS</span></h2>
+      <p class="section-sub">Ingresa tu número de teléfono o número de boleto</p>
+      <form id="verify-form">
+        <input id="verify-input" inputmode="numeric" placeholder="Teléfono o # de boleto" required />
+        <button class="btn btn-gold">Buscar</button>
+      </form>
+      <div class="verify-result" id="verify-result"></div>
+    </div>
+  </section>
+
+  <!-- Sorteador -->
+  <section class="section" id="sorteador" style="background:var(--bg-2)">
+    <div class="container sorteador">
+      <h2 class="section-title">SORTEADOR DE <span>BOLETOS</span></h2>
+      <p class="section-sub">Simulador: prueba tu suerte antes del sorteo oficial</p>
+      <div class="display" id="draw-display">000</div>
+      <button class="btn btn-gold" id="btn-draw">🎲 Iniciar</button>
+    </div>
+  </section>
+
+  <Accounts subtitle="¡Mucha suerte! 🍀" />
+
+  <!-- Modal: compra -->
+  <div class="modal" id="modal-buy">
+    <div class="modal-box">
+      <button class="modal-close" data-close>×</button>
+      <h3>CONFIRMA TU COMPRA</h3>
+      <p class="muted">Tus boletos quedarán apartados por 3 horas mientras validamos el pago.</p>
+
+      <form id="buy-form">
+        <div class="form-step-title">1 · Datos personales</div>
+        <div class="field"><label>Nombres y apellidos *</label><input name="nombre" required /></div>
+        <div class="field"><label>Cédula / Identificación</label><input name="cedula" /></div>
+        <div class="field">
+          <label>Teléfono (WhatsApp) *</label>
+          <div class="row-2">
+            <select name="codigo">
+              {paises.map(([code, flag]) => <option value={code}>{flag} +{code}</option>)}
+            </select>
+            <input name="telefono" inputmode="numeric" required placeholder="4120000000" />
+          </div>
+        </div>
+        <div class="field"><label>Correo electrónico</label><input name="email" type="email" /></div>
+
+        <div class="form-step-title">2 · Método de pago</div>
+        <div class="pay-opts" id="pay-opts">
+          {
+            CUENTAS.map((c, i) => (
+              <>
+                <input type="radio" name="pago" id={`pay-${i}`} value={i} required />
+                <label for={`pay-${i}`}>{c.nombre}</label>
+              </>
+            ))
+          }
+        </div>
+        <div class="pay-detail" id="pay-detail"></div>
+
+        <div class="form-step-title">3 · Comprobante de pago</div>
+        <label class="upload">
+          <span id="upload-text">📎 Toca para subir la captura del pago</span>
+          <input type="file" accept="image/*" hidden id="upload" />
+        </label>
+        <label class="check" style="margin-top:10px">
+          <input type="checkbox" id="later" /> Enviaré el comprobante más tarde por WhatsApp
+        </label>
+
+        <div class="summary-box"><span id="sum-nums"></span><b id="sum-total"></b></div>
+
+        <label class="check"><input type="checkbox" required /> Autorizo el uso de mis datos personales para este sorteo.</label>
+        <label class="check"><input type="checkbox" required /> Acepto los términos y condiciones.</label>
+
+        <button class="btn btn-gold btn-block" style="margin-top:14px">Confirmar</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: éxito -->
+  <div class="modal" id="modal-ok">
+    <div class="modal-box success">
+      <button class="modal-close" data-close>×</button>
+      <div class="ico">🎉</div>
+      <h3>¡BOLETOS REGISTRADOS!</h3>
+      <p class="muted" id="ok-msg"></p>
+      <div class="verify-result" id="ok-ticket"></div>
+      <a class="btn btn-green btn-block" id="ok-wa" target="_blank" rel="noopener">Enviar comprobante por WhatsApp</a>
+      <button class="btn btn-ghost btn-block" style="margin-top:10px" data-close>Ver mis boletos</button>
+    </div>
+  </div>
+</Layout>
+
+<script>
+  import { initRifa } from "../../scripts/rifa";
+  initRifa();
+</script>
