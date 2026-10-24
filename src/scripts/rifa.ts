@@ -1,7 +1,8 @@
-// Lógica de la página de una rifa.
-// Demo sin backend: las compras se guardan en localStorage del navegador.
+// Lógica de la página de una rifa: selección de números, compra y verificador.
+// Los boletos vendidos vienen del servidor y las compras se envían a /api/comprar.
 
-import type { Cuenta, Paquete } from "../data/config";
+import type { Paquete } from "../data/config";
+import { calcularTotal } from "../lib/precios";
 import { toast, pad } from "./ui";
 
 interface RifaData {
@@ -9,57 +10,36 @@ interface RifaData {
   titulo: string;
   precio: number;
   totalBoletos: number;
-  vendidosPct: number;
   fecha: string;
   paquetes: Paquete[];
-  cuentas: Cuenta[];
+  vendidos: number[];
   whatsapp: string;
   moneda: string;
 }
 
-interface Compra {
+interface OrdenPublica {
   id: string;
   nombre: string;
-  telefono: string;
-  telefonoLocal: string;
-  pago: string;
   numeros: number[];
-  total: number;
-  fecha: string;
+  total?: number;
+  estado: "pendiente" | "aprobado" | "rechazado";
 }
+
+const ESTADO_TEXTO = { pendiente: "Pendiente de validación", aprobado: "Pago aprobado", rechazado: "Rechazado" };
 
 const $ = <T extends HTMLElement = HTMLElement>(sel: string) => document.querySelector<T>(sel);
 const $$ = (sel: string) => [...document.querySelectorAll<HTMLElement>(sel)];
+const escape = (s: string) =>
+  s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
 
 export function initRifa() {
   const rifa: RifaData = JSON.parse($("#rifa-data")!.textContent!);
   const DIGITS = String(rifa.totalBoletos - 1).length;
-  const STORE_KEY = `trebol_compras_${rifa.id}`;
   const num = (n: number) => pad(n, DIGITS);
   const money = (n: number) => `${rifa.moneda}${n.toLocaleString("es", { maximumFractionDigits: 2 })}`;
   const waLink = (msg = "") => `https://wa.me/${rifa.whatsapp}${msg ? `?text=${encodeURIComponent(msg)}` : ""}`;
 
-  // ---------- Almacenamiento ----------
-  const loadPurchases = (): Compra[] => {
-    try {
-      return JSON.parse(localStorage.getItem(STORE_KEY) ?? "[]");
-    } catch {
-      return [];
-    }
-  };
-  const savePurchases = (list: Compra[]) => {
-    try {
-      localStorage.setItem(STORE_KEY, JSON.stringify(list));
-    } catch {}
-  };
-
-  // Boletos vendidos de demo: pseudoaleatorio estable por rifa
-  const sold = new Set<number>();
-  let seed = [...rifa.id].reduce((a, c) => a + c.charCodeAt(0), 0);
-  const rand = () => (seed = (seed * 9301 + 49297) % 233280) / 233280;
-  for (let i = 0; i < rifa.totalBoletos; i++) if (rand() < rifa.vendidosPct) sold.add(i);
-  loadPurchases().forEach((p) => p.numeros.forEach((n) => sold.add(n)));
-
+  const sold = new Set(rifa.vendidos);
   const selected = new Set<number>();
 
   // ---------- Resumen ----------
@@ -69,7 +49,6 @@ export function initRifa() {
     $("#r-pct")!.textContent = `${pct}%`;
     $("#r-available")!.textContent = `${rifa.totalBoletos - sold.size} / ${rifa.totalBoletos}`;
   }
-  updateStats();
 
   // ---------- Cuenta regresiva ----------
   function tick() {
@@ -86,29 +65,28 @@ export function initRifa() {
   setInterval(tick, 1000);
 
   // ---------- Verificador ----------
-  const ticketHTML = (c: Compra) => `<div class="ticket">
+  const ticketHTML = (o: OrdenPublica) => `<div class="ticket">
     <div>
-      <div style="font-weight:700">${c.nombre} <small style="color:var(--muted)">· Orden ${c.id}</small></div>
-      <div class="nums" style="margin-top:6px">${c.numeros.map((n) => `<b>${num(n)}</b>`).join("")}</div>
+      <div style="font-weight:700">${escape(o.nombre)} <small style="color:var(--muted)">· Orden ${o.id}</small></div>
+      <div class="nums" style="margin-top:6px">${o.numeros.map((n) => `<b>${num(n)}</b>`).join("")}</div>
     </div>
-    <span class="status pending">Pendiente de validación</span>
+    <span class="status ${o.estado}">${ESTADO_TEXTO[o.estado]}</span>
   </div>`;
 
-  $("#verify-form")!.addEventListener("submit", (e) => {
+  $("#verify-form")!.addEventListener("submit", async (e) => {
     e.preventDefault();
     const q = $<HTMLInputElement>("#verify-input")!.value.replace(/\D/g, "");
     const out = $("#verify-result")!;
     if (!q) return;
-    const asTicket = q.length <= DIGITS ? +q : null;
-    const found = loadPurchases().filter(
-      (c) => c.telefono.endsWith(q) || c.telefonoLocal === q || (asTicket !== null && c.numeros.includes(asTicket)),
-    );
-    if (found.length) {
-      out.innerHTML = found.map(ticketHTML).join("");
-    } else if (asTicket !== null && sold.has(asTicket)) {
-      out.innerHTML = `<div class="ticket"><div>Boleto <b style="color:var(--gold)">#${num(asTicket)}</b> registrado a otro participante.</div><span class="status ok">Vendido</span></div>`;
-    } else {
-      out.innerHTML = `<p style="color:var(--muted);text-align:center">No encontramos boletos con ese dato. ¿Dudas? <a href="${waLink()}" target="_blank" style="color:var(--gold)">Escríbenos</a></p>`;
+    out.innerHTML = `<p style="color:var(--muted);text-align:center">Buscando…</p>`;
+    try {
+      const res = await fetch(`/api/verificar?rifa=${encodeURIComponent(rifa.id)}&q=${q}`);
+      const { ordenes } = (await res.json()) as { ordenes: OrdenPublica[] };
+      out.innerHTML = ordenes.length
+        ? ordenes.map(ticketHTML).join("")
+        : `<p style="color:var(--muted);text-align:center">No encontramos boletos con ese dato. ¿Dudas? <a href="${waLink()}" target="_blank" class="red">Escríbenos</a></p>`;
+    } catch {
+      out.innerHTML = `<p style="color:var(--muted);text-align:center">No se pudo consultar. Intenta de nuevo.</p>`;
     }
   });
 
@@ -181,7 +159,7 @@ export function initRifa() {
     const p = rifa.paquetes[+b.dataset.pack!];
     selected.clear();
     pickRandom(p.cant);
-    toast(`🍀 ${p.cant} boletos elegidos a la suerte`);
+    toast(`🎲 ${p.cant} boletos elegidos a la suerte`);
   });
   $("#btn-lucky")!.addEventListener("click", () => pickRandom(1));
   $("#btn-clear")!.addEventListener("click", () => {
@@ -212,11 +190,7 @@ export function initRifa() {
   search.addEventListener("keydown", (e) => e.key === "Enter" && searchNumber());
 
   // ---------- Carrito ----------
-  function total() {
-    const qty = selected.size;
-    const best = rifa.paquetes.filter((p) => qty >= p.cant).sort((a, b) => b.desc - a.desc)[0];
-    return rifa.precio * qty * (1 - (best?.desc ?? 0));
-  }
+  const total = () => calcularTotal(rifa.precio, selected.size, rifa.paquetes);
   const sortedSelection = () => [...selected].sort((a, b) => a - b);
 
   function updateCart() {
@@ -240,19 +214,8 @@ export function initRifa() {
     const nums = sortedSelection().map(num);
     $("#sum-nums")!.textContent = `${nums.length} boleto(s): ${nums.slice(0, 8).join(", ")}${nums.length > 8 ? "…" : ""}`;
     $("#sum-total")!.textContent = money(total());
+    $$(".pay-amount").forEach((el) => (el.textContent = money(total())));
     openModal("#modal-buy");
-  });
-
-  const payDetail = $("#pay-detail")!;
-  $("#pay-opts")!.addEventListener("change", (e) => {
-    const c = rifa.cuentas[+(e.target as HTMLInputElement).value];
-    payDetail.innerHTML =
-      `<b>${c.nombre}</b> · ${c.sub}<br>` +
-      c.datos
-        .map(([k, v]) => `${k}: <b>${v}</b> <button type="button" class="copy" data-copy="${v}">Copiar</button>`)
-        .join("<br>") +
-      `<br><span style="color:var(--gold)">Monto a pagar: <b>${money(total())}</b></span>`;
-    payDetail.classList.add("show");
   });
 
   const upload = $<HTMLInputElement>("#upload")!;
@@ -260,45 +223,64 @@ export function initRifa() {
   const UPLOAD_DEFAULT = uploadText.textContent!;
   upload.addEventListener("change", () => {
     const f = upload.files?.[0];
-    if (f) uploadText.textContent = `✅ ${f.name}`;
+    uploadText.textContent = f ? `✅ ${f.name}` : UPLOAD_DEFAULT;
   });
 
-  $<HTMLFormElement>("#buy-form")!.addEventListener("submit", (e) => {
+  const form = $<HTMLFormElement>("#buy-form")!;
+  const confirmBtn = $<HTMLButtonElement>("#btn-confirm")!;
+
+  form.addEventListener("submit", async (e) => {
     e.preventDefault();
-    const form = e.currentTarget as HTMLFormElement;
-    if (!upload.files?.length && !$<HTMLInputElement>("#later")!.checked) {
-      return toast("Sube el comprobante o marca que lo enviarás más tarde");
+    const referencia = (form.elements.namedItem("referencia") as HTMLInputElement).value.trim();
+    if (!upload.files?.length && !referencia && !$<HTMLInputElement>("#later")!.checked) {
+      return toast("Sube la captura, escribe la referencia o marca que la enviarás después");
     }
-    const fd = new FormData(form);
-    const telefonoLocal = String(fd.get("telefono")).replace(/\D/g, "");
-    const compra: Compra = {
-      id: Date.now().toString(36).toUpperCase(),
-      nombre: String(fd.get("nombre")),
-      telefono: `${fd.get("codigo")}${telefonoLocal}`,
-      telefonoLocal,
-      pago: rifa.cuentas[+String(fd.get("pago"))].nombre,
-      numeros: sortedSelection(),
-      total: total(),
-      fecha: new Date().toISOString(),
-    };
-    savePurchases([...loadPurchases(), compra]);
-    compra.numeros.forEach((n) => sold.add(n));
-    selected.clear();
-    renderGrid();
-    updateCart();
-    updateStats();
 
-    form.reset();
-    payDetail.classList.remove("show");
-    uploadText.textContent = UPLOAD_DEFAULT;
+    $<HTMLInputElement>("#f-numeros")!.value = sortedSelection().join(",");
+    confirmBtn.disabled = true;
+    confirmBtn.textContent = "Enviando…";
 
-    $("#ok-msg")!.textContent = `${compra.nombre}, tus boletos quedaron apartados. Te confirmaremos por WhatsApp cuando validemos el pago.`;
-    $("#ok-ticket")!.innerHTML = ticketHTML(compra);
-    $<HTMLAnchorElement>("#ok-wa")!.href = waLink(
-      `Hola! Compré boletos de ${rifa.titulo} 🍀\nOrden: ${compra.id}\nNombre: ${compra.nombre}\nNúmeros: ${compra.numeros.map(num).join(", ")}\nTotal: ${money(compra.total)} (${compra.pago})`,
-    );
-    closeModals();
-    openModal("#modal-ok");
+    try {
+      const res = await fetch("/api/comprar", { method: "POST", body: new FormData(form) });
+      const data = await res.json();
+
+      if (res.status === 409 && data.conflicto) {
+        // Otro comprador tomó algunos números mientras tanto
+        (data.conflicto as number[]).forEach((n) => {
+          sold.add(n);
+          selected.delete(n);
+        });
+        renderGrid();
+        updateCart();
+        updateStats();
+        closeModals();
+        return toast(`😕 Ya vendieron: ${(data.conflicto as number[]).map(num).join(", ")}. Elige otros.`);
+      }
+      if (!res.ok) return toast(data.error ?? "No se pudo registrar la compra");
+
+      const orden = data.orden as OrdenPublica;
+      orden.numeros.forEach((n) => sold.add(n));
+      selected.clear();
+      renderGrid();
+      updateCart();
+      updateStats();
+
+      form.reset();
+      uploadText.textContent = UPLOAD_DEFAULT;
+
+      $("#ok-msg")!.textContent = `${orden.nombre}, tus boletos quedaron apartados. Te confirmaremos por WhatsApp cuando validemos el pago.`;
+      $("#ok-ticket")!.innerHTML = ticketHTML(orden);
+      $<HTMLAnchorElement>("#ok-wa")!.href = waLink(
+        `Hola! Compré boletos de ${rifa.titulo} 🏆\nOrden: ${orden.id}\nNombre: ${orden.nombre}\nNúmeros: ${orden.numeros.map(num).join(", ")}\nTotal: ${money(orden.total ?? 0)}`,
+      );
+      closeModals();
+      openModal("#modal-ok");
+    } catch {
+      toast("Error de conexión. Intenta de nuevo.");
+    } finally {
+      confirmBtn.disabled = false;
+      confirmBtn.textContent = "Confirmar";
+    }
   });
 
   updateCart();

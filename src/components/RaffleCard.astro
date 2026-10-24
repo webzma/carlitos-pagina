@@ -3,10 +3,11 @@ import { type Rifa, money, fmtDate } from "../data/config";
 
 interface Props {
   rifa: Rifa;
+  vendidos: number;
 }
-const { rifa } = Astro.props;
+const { rifa, vendidos } = Astro.props;
 const activa = rifa.estado === "activa";
-const pct = Math.round(rifa.vendidosPct * 100);
+const pct = Math.round((vendidos / rifa.totalBoletos) * 100);
 ---
 
 <article class="card">
@@ -23,7 +24,7 @@ const pct = Math.round(rifa.vendidosPct * 100);
         <>
           <div class="progress"><div style={`width:${pct}%`} /></div>
           <div class="progress-label"><span>Vendidos</span><span>{pct}%</span></div>
-          <a href={`/rifas/${rifa.id}`} class="btn btn-gold btn-block">🎟️ Boletos disponibles</a>
+          <a href={`/rifas/${rifa.id}`} class="btn btn-primary btn-block">🎟️ Boletos disponibles</a>
         </>
       ) : (
         <>

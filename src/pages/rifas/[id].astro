@@ -2,15 +2,17 @@
 import Layout from "../../layouts/Layout.astro";
 import Accounts from "../../components/Accounts.astro";
 import { RIFAS, CUENTAS, SITE, premiosDe, paquetesDe, money, fmtDate } from "../../data/config";
+import { vendidos } from "../../lib/db";
 
-export function getStaticPaths() {
-  return RIFAS.map((rifa) => ({ params: { id: rifa.id }, props: { rifa } }));
-}
+const rifa = RIFAS.find((r) => r.id === Astro.params.id);
+if (!rifa) return Astro.redirect("/", 302);
 
-const { rifa } = Astro.props;
 const activa = rifa.estado === "activa";
 const premios = premiosDe(rifa);
 const paquetes = paquetesDe(rifa);
+const ocupados = vendidos(rifa.id);
+const pct = Math.round((ocupados.length / rifa.totalBoletos) * 100);
+const digitos = String(rifa.totalBoletos - 1).length;
 
 // Datos que necesita el script del navegador
 const clientData = {
@@ -18,10 +20,9 @@ const clientData = {
   titulo: rifa.titulo,
   precio: rifa.precio,
   totalBoletos: rifa.totalBoletos,
-  vendidosPct: rifa.vendidosPct,
   fecha: rifa.fecha,
   paquetes,
-  cuentas: CUENTAS,
+  vendidos: ocupados,
   whatsapp: SITE.whatsapp,
   moneda: SITE.moneda,
 };
@@ -31,7 +32,7 @@ const links = [
   { href: "#boletos", label: "BOLETOS" },
   { href: "#premios", label: "PREMIOS" },
   { href: "#verificador", label: "VERIFICADOR" },
-  { href: "#sorteador", label: "SORTEADOR" },
+  { href: "#cuentas", label: "PAGO" },
   { href: "#contacto", label: "CONTACTO" },
 ];
 
@@ -55,10 +56,12 @@ const paises = [
         <h1>{rifa.titulo}</h1>
         <p class="lead">{rifa.descripcion}</p>
         <div class="info-grid">
-          <div class="info-box"><span>Precio por boleto</span><strong class="gold">{money(rifa.precio)}</strong></div>
+          <div class="info-box"><span>Precio por boleto</span><strong class="red">{money(rifa.precio)}</strong></div>
           <div class="info-box"><span>Fecha del sorteo</span><strong>{fmtDate(rifa.fecha)}</strong></div>
           <div class="info-box"><span>Juega con</span><strong style="font-size:1rem">{rifa.loteria}</strong></div>
-          <div class="info-box"><span>Disponibles</span><strong id="r-available">—</strong></div>
+          <div class="info-box">
+            <span>Disponibles</span><strong id="r-available">{rifa.totalBoletos - ocupados.length} / {rifa.totalBoletos}</strong>
+          </div>
         </div>
         <div class="countdown">
           <div><b data-cd="d">00</b><small>Días</small></div>
@@ -66,8 +69,8 @@ const paises = [
           <div><b data-cd="m">00</b><small>Min</small></div>
           <div><b data-cd="s">00</b><small>Seg</small></div>
         </div>
-        <div class="progress"><div id="r-progress" style="width:0"></div></div>
-        <div class="progress-label" style="margin-top:6px"><span>Boletos vendidos</span><span id="r-pct">0%</span></div>
+        <div class="progress"><div id="r-progress" style={`width:${pct}%`}></div></div>
+        <div class="progress-label" style="margin-top:6px"><span>Boletos vendidos</span><span id="r-pct">{pct}%</span></div>
       </div>
     </div>
   </section>
@@ -81,9 +84,9 @@ const paises = [
           <p class="section-sub">Compra un paquete o escoge tus números uno por uno</p>
         ) : (
           <p class="section-sub">
-            Esta rifa ya finalizó. 🏆 Ganador: <b style="color:var(--gold)">{rifa.ganador}</b>
+            Esta rifa ya finalizó. 🏆 Ganador: <b class="red">{rifa.ganador}</b>
             <br /><br />
-            <a class="btn btn-gold" href="/#rifas">Ver rifas disponibles</a>
+            <a class="btn btn-primary" href="/#rifas">Ver rifas disponibles</a>
           </p>
         )
       }
@@ -104,18 +107,16 @@ const paises = [
 
             <div class="panel">
               <div class="picker-tools">
-                <input id="search" type="text" inputmode="numeric" maxlength="3" placeholder="Busca tu número (ej. 777)" />
+                <input id="search" type="text" inputmode="numeric" maxlength={digitos} placeholder="Busca tu número (ej. 777)" />
                 <button class="btn btn-ghost" id="btn-search">Buscar</button>
-                <button class="btn btn-green" id="btn-lucky">🍀 Elegir a la suerte</button>
+                <button class="btn btn-dark" id="btn-lucky">🎲 Elegir a la suerte</button>
                 <button class="btn btn-ghost" id="btn-clear">Limpiar</button>
               </div>
               <div class="legend">
-                <span><i style="background:var(--bg-2);border:1px solid var(--line)" />Disponible</span>
-                <span><i style="background:var(--gold)" />Seleccionado</span>
-                <span><i style="background:#2a1717;border:1px solid #3d2121" />Vendido</span>
-                <label style="margin-left:auto;cursor:pointer">
-                  <input type="checkbox" id="only-free" style="accent-color:var(--gold)" /> Mostrar solo disponibles
-                </label>
+                <span><i class="l-free" />Disponible</span>
+                <span><i class="l-sel" />Seleccionado</span>
+                <span><i class="l-sold" />Vendido</span>
+                <label><input type="checkbox" id="only-free" /> Mostrar solo disponibles</label>
               </div>
               <div class="grid-numbers" id="grid" />
             </div>
@@ -127,7 +128,7 @@ const paises = [
                 </div>
                 <div class="cart-chips" id="chips" />
               </div>
-              <button class="btn btn-gold" id="btn-continue" disabled>Continuar →</button>
+              <button class="btn btn-primary" id="btn-continue" disabled>Continuar →</button>
             </div>
           </div>
         )
@@ -136,14 +137,11 @@ const paises = [
   </section>
 
   <!-- Premios -->
-  <section class="section" id="premios" style="background:var(--bg-2)">
+  <section class="section alt" id="premios">
     <div class="container">
       <h2 class="section-title">LISTA DE <span>PREMIOS</span></h2>
       <p class="section-sub">Se sortean con la {rifa.loteria}</p>
-      <div
-        class="prizes-list"
-        style={premios.length < 3 ? "grid-template-columns:minmax(0,420px);justify-content:center" : undefined}
-      >
+      <div class:list={["prizes-list", { single: premios.length < 3 }]}>
         {
           premios.map((p) => (
             <div class="prize">
@@ -165,66 +163,72 @@ const paises = [
       <p class="section-sub">Ingresa tu número de teléfono o número de boleto</p>
       <form id="verify-form">
         <input id="verify-input" inputmode="numeric" placeholder="Teléfono o # de boleto" required />
-        <button class="btn btn-gold">Buscar</button>
+        <button class="btn btn-primary">Buscar</button>
       </form>
       <div class="verify-result" id="verify-result"></div>
     </div>
   </section>
 
   <!-- Sorteador -->
-  <section class="section" id="sorteador" style="background:var(--bg-2)">
+  <section class="section alt" id="sorteador">
     <div class="container sorteador">
       <h2 class="section-title">SORTEADOR DE <span>BOLETOS</span></h2>
       <p class="section-sub">Simulador: prueba tu suerte antes del sorteo oficial</p>
-      <div class="display" id="draw-display">000</div>
-      <button class="btn btn-gold" id="btn-draw">🎲 Iniciar</button>
+      <div class="display" id="draw-display">{"0".repeat(digitos)}</div>
+      <button class="btn btn-dark" id="btn-draw">🎲 Iniciar</button>
     </div>
   </section>
 
-  <Accounts subtitle="¡Mucha suerte! 🍀" />
+  <Accounts subtitle="¡Mucha suerte! 🏆" />
 
   <!-- Modal: compra -->
   <div class="modal" id="modal-buy">
     <div class="modal-box">
       <button class="modal-close" data-close>×</button>
       <h3>CONFIRMA TU COMPRA</h3>
-      <p class="muted">Tus boletos quedarán apartados por 3 horas mientras validamos el pago.</p>
+      <p class="muted">Tus boletos quedan apartados al enviar el formulario mientras validamos el pago.</p>
 
       <form id="buy-form">
+        <input type="hidden" name="rifa" value={rifa.id} />
+        <input type="hidden" name="numeros" id="f-numeros" />
+
         <div class="form-step-title">1 · Datos personales</div>
-        <div class="field"><label>Nombres y apellidos *</label><input name="nombre" required /></div>
-        <div class="field"><label>Cédula / Identificación</label><input name="cedula" /></div>
+        <div class="field"><label>Nombres y apellidos *</label><input name="nombre" required minlength="3" maxlength="120" /></div>
+        <div class="field"><label>Cédula</label><input name="cedula" inputmode="numeric" maxlength="20" /></div>
         <div class="field">
           <label>Teléfono (WhatsApp) *</label>
           <div class="row-2">
             <select name="codigo">
               {paises.map(([code, flag]) => <option value={code}>{flag} +{code}</option>)}
             </select>
-            <input name="telefono" inputmode="numeric" required placeholder="4120000000" />
+            <input name="telefono" inputmode="numeric" required placeholder="4120000000" maxlength="20" />
           </div>
         </div>
-        <div class="field"><label>Correo electrónico</label><input name="email" type="email" /></div>
+        <div class="field"><label>Correo electrónico</label><input name="email" type="email" maxlength="120" /></div>
 
-        <div class="form-step-title">2 · Método de pago</div>
-        <div class="pay-opts" id="pay-opts">
-          {
-            CUENTAS.map((c, i) => (
-              <>
-                <input type="radio" name="pago" id={`pay-${i}`} value={i} required />
-                <label for={`pay-${i}`}>{c.nombre}</label>
-              </>
-            ))
-          }
-        </div>
-        <div class="pay-detail" id="pay-detail"></div>
+        <div class="form-step-title">2 · Realiza el pago</div>
+        {
+          CUENTAS.map((c) => (
+            <div class="pay-detail" style="margin-bottom:10px">
+              <b>{c.nombre}</b> · {c.sub}
+              {c.datos.map(([k, v]) => (
+                <div>
+                  {k}: <b>{v}</b> <button type="button" class="copy" data-copy={v}>Copiar</button>
+                </div>
+              ))}
+              <span class="note">Monto a pagar: <b class="red pay-amount"></b>. Si pagas en bolívares, usa la tasa BCV del día.</span>
+            </div>
+          ))
+        }
 
         <div class="form-step-title">3 · Comprobante de pago</div>
+        <div class="field"><label>Número de referencia</label><input name="referencia" inputmode="numeric" maxlength="40" placeholder="Últimos dígitos de la referencia" /></div>
         <label class="upload">
           <span id="upload-text">📎 Toca para subir la captura del pago</span>
-          <input type="file" accept="image/*" hidden id="upload" />
+          <input type="file" name="comprobante" accept="image/jpeg,image/png,image/webp" hidden id="upload" />
         </label>
         <label class="check" style="margin-top:10px">
-          <input type="checkbox" id="later" /> Enviaré el comprobante más tarde por WhatsApp
+          <input type="checkbox" name="despues" value="1" id="later" /> Enviaré el comprobante más tarde por WhatsApp
         </label>
 
         <div class="summary-box"><span id="sum-nums"></span><b id="sum-total"></b></div>
@@ -232,7 +236,7 @@ const paises = [
         <label class="check"><input type="checkbox" required /> Autorizo el uso de mis datos personales para este sorteo.</label>
         <label class="check"><input type="checkbox" required /> Acepto los términos y condiciones.</label>
 
-        <button class="btn btn-gold btn-block" style="margin-top:14px">Confirmar</button>
+        <button class="btn btn-primary btn-block" style="margin-top:14px" id="btn-confirm">Confirmar</button>
       </form>
     </div>
   </div>
@@ -245,8 +249,8 @@ const paises = [
       <h3>¡BOLETOS REGISTRADOS!</h3>
       <p class="muted" id="ok-msg"></p>
       <div class="verify-result" id="ok-ticket"></div>
-      <a class="btn btn-green btn-block" id="ok-wa" target="_blank" rel="noopener">Enviar comprobante por WhatsApp</a>
-      <button class="btn btn-ghost btn-block" style="margin-top:10px" data-close>Ver mis boletos</button>
+      <a class="btn btn-dark btn-block" id="ok-wa" target="_blank" rel="noopener">Enviar comprobante por WhatsApp</a>
+      <button class="btn btn-ghost btn-block" style="margin-top:10px" data-close>Cerrar</button>
     </div>
   </div>
 </Layout>

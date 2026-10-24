@@ -22,12 +22,11 @@ export interface Rifa {
   descripcion: string;
   precio: number;
   totalBoletos: number;
-  vendidosPct: number; // demo: % de boletos ocupados
   fecha: string;
   loteria: string;
   estado: "activa" | "finalizada";
   ganador?: string;
-  estilo?: "" | "gold" | "gray";
+  estilo?: "" | "alt" | "gray";
   premios?: Premio[];
   paquetes?: Paquete[];
 }
@@ -41,10 +40,10 @@ export interface Cuenta {
 }
 
 export const SITE = {
-  marca: "Sorteos El Trébol",
-  ciudad: "Caracas, Venezuela",
-  whatsapp: "584120000000", // solo números, con código de país
-  email: "contacto@eltrebol.com",
+  marca: "Rifa El Triunfo",
+  ciudad: "Venezuela",
+  whatsapp: "584245983346", // solo números, con código de país
+  email: "ctortozalugo@gmail.com",
   instagram: "#",
   tiktok: "#",
   moneda: "$",
@@ -65,7 +64,6 @@ export const RIFAS: Rifa[] = [
     descripcion: "Moto 0 km + iPhone 16 + $500 en efectivo",
     precio: 2,
     totalBoletos: 1000,
-    vendidosPct: 0.62,
     fecha: "2026-10-31T21:00:00",
     loteria: "Lotería del Táchira (Triple A)",
     estado: "activa",
@@ -82,11 +80,10 @@ export const RIFAS: Rifa[] = [
     descripcion: "$1.000 directos a tu cuenta",
     precio: 1,
     totalBoletos: 1000,
-    vendidosPct: 0.35,
     fecha: "2026-11-08T21:00:00",
     loteria: "Lotería de Oriente",
     estado: "activa",
-    estilo: "gold",
+    estilo: "alt",
   },
   {
     id: "gran-combo-6",
@@ -95,7 +92,6 @@ export const RIFAS: Rifa[] = [
     descripcion: 'Smart TV 65" + PS5',
     precio: 2,
     totalBoletos: 1000,
-    vendidosPct: 1,
     fecha: "2026-10-10T21:00:00",
     loteria: "Lotería del Táchira",
     estado: "finalizada",
@@ -109,7 +105,6 @@ export const RIFAS: Rifa[] = [
     descripcion: "Chevrolet Aveo 2015",
     precio: 5,
     totalBoletos: 1000,
-    vendidosPct: 1,
     fecha: "2026-09-20T21:00:00",
     loteria: "Lotería del Zulia",
     estado: "finalizada",
@@ -119,18 +114,18 @@ export const RIFAS: Rifa[] = [
 ];
 
 export const CUENTAS: Cuenta[] = [
-  { nombre: "Pago Móvil", sub: "Banco de Venezuela", color: "#c8102e", sigla: "PM",
-    datos: [["Teléfono", "0412-000-0000"], ["Cédula", "V-00.000.000"], ["Titular", "Nombre Apellido"]] },
-  { nombre: "Zelle", sub: "Estados Unidos", color: "#6d1ed4", sigla: "Z",
-    datos: [["Correo", "pagos@eltrebol.com"], ["Titular", "Nombre Apellido"]] },
-  { nombre: "Binance", sub: "USDT · Binance Pay", color: "#f0b90b", sigla: "B",
-    datos: [["Pay ID", "000000000"], ["Titular", "Nombre Apellido"]] },
-  { nombre: "Nequi", sub: "Colombia", color: "#e6007e", sigla: "N",
-    datos: [["Número", "300 000 0000"], ["Titular", "Nombre Apellido"]] },
-  { nombre: "Yape", sub: "Perú", color: "#742284", sigla: "Y",
-    datos: [["Número", "900 000 000"], ["Titular", "Nombre Apellido"]] },
-  { nombre: "Bizum", sub: "España", color: "#05c3dd", sigla: "BZ",
-    datos: [["Teléfono", "+34 600 000 000"], ["Titular", "Nombre Apellido"]] },
+  {
+    nombre: "Pago Móvil",
+    sub: "Banco de Venezuela (0102)",
+    color: "#d90429",
+    sigla: "PM",
+    datos: [
+      ["Banco", "Banco de Venezuela"],
+      ["Cédula", "31050248"],
+      ["Teléfono", "04245983346"],
+      ["Email", "ctortozalugo@gmail.com"],
+    ],
+  },
 ];
 
 // ---------- Helpers ----------

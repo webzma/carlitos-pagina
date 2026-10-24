@@ -3,7 +3,8 @@ import Layout from "../layouts/Layout.astro";
 import RaffleCard from "../components/RaffleCard.astro";
 import Accounts from "../components/Accounts.astro";
 import Faq from "../components/Faq.astro";
-import { SITE, RIFAS } from "../data/config";
+import { SITE, RIFAS, money } from "../data/config";
+import { conteoVendidos } from "../lib/db";
 
 const activas = RIFAS.filter((r) => r.estado === "activa");
 const finalizadas = RIFAS.filter((r) => r.estado !== "activa");
@@ -20,11 +21,13 @@ const links = [
 const pasos = [
   ["Elige tu rifa", "Selecciona la rifa activa que más te guste."],
   ["Escoge tus números", "Búscalos en la lista o deja que la suerte elija por ti."],
-  ["Paga y sube tu comprobante", "Usa cualquiera de nuestras cuentas y adjunta la captura."],
+  ["Paga y sube tu comprobante", "Haz el Pago Móvil y adjunta la captura con la referencia."],
   ["¡Espera el sorteo!", "Verifica tus boletos y sigue el resultado con la lotería oficial."],
 ];
 
-const destacada = activas[0];
+const destacada = activas[0] ?? RIFAS[0];
+const vendidos = conteoVendidos();
+const precioMin = Math.min(...activas.map((r) => r.precio));
 ---
 
 <Layout links={links}>
@@ -32,20 +35,20 @@ const destacada = activas[0];
     <div class="container">
       <div>
         <div class="hero-tag">📍 {SITE.ciudad} · Sorteos con lotería oficial</div>
-        <h1>SORTEOS<span>EL TRÉBOL</span></h1>
+        <h1>RIFA<span>EL TRIUNFO</span></h1>
         <p>
-          Elige tus números de la suerte, paga desde cualquier país y sigue el sorteo en vivo. ¡Tu próximo premio
+          Elige tus números de la suerte, paga por Pago Móvil y sigue el sorteo en vivo. ¡Tu próximo premio
           puede estar a un boleto de distancia!
         </p>
         <div class="hero-actions">
-          <a href={`/rifas/${destacada.id}`} class="btn btn-gold">🎟️ Comprar boletos</a>
+          <a href={`/rifas/${destacada.id}`} class="btn btn-primary">🎟️ Comprar boletos</a>
           <a href={`/rifas/${destacada.id}#verificador`} class="btn btn-ghost">Verificar mis boletos</a>
         </div>
       </div>
       <div class="hero-art">
-        <div class="big">🍀</div>
+        <div class="big">🏆</div>
         <div class="chip c1">{destacada.icono} {destacada.descripcion.split("+")[0].trim()}<small>{destacada.titulo}</small></div>
-        <div class="chip c2">Desde $1<small>por boleto</small></div>
+        <div class="chip c2">Desde {money(precioMin)}<small>por boleto</small></div>
       </div>
     </div>
   </section>
@@ -54,7 +57,7 @@ const destacada = activas[0];
     <div class="stats">
       <div class="stat"><strong>+120</strong><span>Sorteos realizados</span></div>
       <div class="stat"><strong>+8.500</strong><span>Ganadores felices</span></div>
-      <div class="stat"><strong>6</strong><span>Países con pagos</span></div>
+      <div class="stat"><strong>24/7</strong><span>Atención por WhatsApp</span></div>
       <div class="stat"><strong>100%</strong><span>Transparente</span></div>
     </div>
   </div>
@@ -63,18 +66,18 @@ const destacada = activas[0];
     <div class="container">
       <h2 class="section-title">RIFAS <span>DISPONIBLES</span></h2>
       <p class="section-sub">¡Participa! Los boletos vuelan 🔥</p>
-      <div class="cards">{activas.map((r) => <RaffleCard rifa={r} />)}</div>
+      <div class="cards">{activas.map((r) => <RaffleCard rifa={r} vendidos={vendidos[r.id] ?? 0} />)}</div>
 
       <h2 class="section-title" style="margin-top:72px">RIFAS <span>FINALIZADAS</span></h2>
       <p class="section-sub">Conoce a nuestros últimos ganadores</p>
-      <div class="cards">{finalizadas.map((r) => <RaffleCard rifa={r} />)}</div>
+      <div class="cards">{finalizadas.map((r) => <RaffleCard rifa={r} vendidos={vendidos[r.id] ?? 0} />)}</div>
       <div class="pagination">
         <button class="active">1</button><button>2</button><button>3</button><button>›</button>
       </div>
     </div>
   </section>
 
-  <section class="section" id="como" style="background:var(--bg-2)">
+  <section class="section alt" id="como">
     <div class="container">
       <h2 class="section-title">¿CÓMO <span>PARTICIPAR?</span></h2>
       <p class="section-sub">En 4 pasos sencillos</p>
