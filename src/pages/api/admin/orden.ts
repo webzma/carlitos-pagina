@@ -18,7 +18,7 @@ export const POST: APIRoute = async ({ request, cookies, redirect }) => {
     return redirect(destino.pathname + destino.search, 303);
   }
 
-  const r = cambiarEstado(id, estado);
+  const r = await cambiarEstado(id, estado);
   destino.searchParams.set("msg", "error" in r ? r.error : `Orden ${id} marcada como ${estado}`);
   destino.searchParams.set("tipo", "error" in r ? "err" : "ok");
   return redirect(destino.pathname + destino.search, 303);

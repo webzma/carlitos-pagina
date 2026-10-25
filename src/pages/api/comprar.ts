@@ -1,19 +1,12 @@
 import type { APIRoute } from "astro";
-import { writeFile } from "node:fs/promises";
-import path from "node:path";
 import { RIFAS, paquetesDe } from "../../data/config";
-import { crearOrden, guardarComprobante, UPLOAD_DIR } from "../../lib/db";
+import { crearOrden } from "../../lib/db";
 import { calcularTotal } from "../../lib/precios";
 
 const MAX_BOLETOS = 200;
-const MAX_ARCHIVO = 6 * 1024 * 1024; // 6 MB
-const EXTENSIONES: Record<string, string> = {
-  "image/jpeg": "jpg",
-  "image/png": "png",
-  "image/webp": "webp",
-  "image/heic": "heic",
-  "image/heif": "heif",
-};
+// Vercel limita el cuerpo de la petición a 4,5 MB; el navegador comprime la captura antes de enviarla
+const MAX_ARCHIVO = 4 * 1024 * 1024;
+const TIPOS = ["image/jpeg", "image/png", "image/webp"];
 
 const json = (data: unknown, status = 200) =>
   new Response(JSON.stringify(data), { status, headers: { "Content-Type": "application/json" } });
@@ -52,14 +45,12 @@ export const POST: APIRoute = async ({ request }) => {
     return json({ error: "Sube el comprobante, escribe la referencia o marca que lo enviarás después" }, 400);
   }
 
-  let ext: string | undefined;
   if (tieneArchivo) {
-    ext = EXTENSIONES[archivo.type];
-    if (!ext) return json({ error: "El comprobante debe ser una imagen (JPG, PNG o WEBP)" }, 400);
-    if (archivo.size > MAX_ARCHIVO) return json({ error: "La imagen no puede pesar más de 6 MB" }, 400);
+    if (!TIPOS.includes(archivo.type)) return json({ error: "El comprobante debe ser una imagen (JPG, PNG o WEBP)" }, 400);
+    if (archivo.size > MAX_ARCHIVO) return json({ error: "La imagen no puede pesar más de 4 MB" }, 400);
   }
 
-  const resultado = crearOrden({
+  const resultado = await crearOrden({
     rifa_id: rifa.id,
     nombre,
     cedula: texto(fd, "cedula", 20),
@@ -68,7 +59,7 @@ export const POST: APIRoute = async ({ request }) => {
     referencia,
     numeros,
     total: calcularTotal(rifa.precio, numeros.length, paquetesDe(rifa)),
-    comprobante: null,
+    comprobante: tieneArchivo ? { tipo: archivo.type, datos: new Uint8Array(await archivo.arrayBuffer()) } : null,
   });
 
   if ("conflicto" in resultado) {
@@ -76,12 +67,5 @@ export const POST: APIRoute = async ({ request }) => {
   }
 
   const { orden } = resultado;
-  if (tieneArchivo) {
-    const nombreArchivo = `${orden.id}.${ext}`;
-    await writeFile(path.join(UPLOAD_DIR, nombreArchivo), Buffer.from(await archivo.arrayBuffer()));
-    guardarComprobante(orden.id, nombreArchivo);
-    orden.comprobante = nombreArchivo;
-  }
-
   return json({ orden: { id: orden.id, nombre: orden.nombre, numeros: orden.numeros, total: orden.total, estado: orden.estado } });
 };

@@ -1,15 +1,17 @@
 // @ts-check
 import { defineConfig, envField } from "astro/config";
-import node from "@astrojs/node";
+import vercel from "@astrojs/vercel";
 
 export default defineConfig({
   output: "server",
-  adapter: node({ mode: "standalone" }),
+  adapter: vercel(),
   env: {
     schema: {
       ADMIN_PASSWORD: envField.string({ context: "server", access: "secret" }),
       SESSION_SECRET: envField.string({ context: "server", access: "secret" }),
-      DATA_DIR: envField.string({ context: "server", access: "secret", default: "./data" }),
+      // Turso en producción; sin valor usa un archivo SQLite local (solo desarrollo)
+      TURSO_DATABASE_URL: envField.string({ context: "server", access: "secret", default: "file:./data/rifa.db" }),
+      TURSO_AUTH_TOKEN: envField.string({ context: "server", access: "secret", optional: true }),
     },
   },
 });

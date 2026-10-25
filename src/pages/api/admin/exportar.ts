@@ -6,7 +6,7 @@ import { RIFAS } from "../../../data/config";
 // Exporta los boletos aprobados de una rifa para cargarlos en la plataforma del sorteo.
 //   formato=csv → Excel (separador ";"), una fila por boleto con los datos del comprador
 //   formato=txt → un número por línea
-export const GET: APIRoute = ({ url, cookies }) => {
+export const GET: APIRoute = async ({ url, cookies }) => {
   if (!esAdmin(cookies)) return new Response("No autorizado", { status: 401 });
 
   const rifa = RIFAS.find((r) => r.id === url.searchParams.get("rifa"));
@@ -14,7 +14,7 @@ export const GET: APIRoute = ({ url, cookies }) => {
 
   const digitos = String(rifa.totalBoletos - 1).length;
   const num = (n: number) => String(n).padStart(digitos, "0");
-  const boletos = boletosAprobados(rifa.id);
+  const boletos = await boletosAprobados(rifa.id);
   const fecha = new Date().toISOString().slice(0, 10);
 
   if (url.searchParams.get("formato") === "txt") {

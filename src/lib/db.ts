@@ -1,10 +1,9 @@
-// Base de datos SQLite (módulo nativo node:sqlite, sin dependencias externas).
+// Base de datos: Turso (libSQL) en producción, archivo SQLite local en desarrollo.
 // Solo se importa desde código de servidor.
 
-import { DatabaseSync } from "node:sqlite";
+import { createClient, type InStatement, type Row } from "@libsql/client";
 import { mkdirSync } from "node:fs";
-import path from "node:path";
-import { DATA_DIR } from "astro:env/server";
+import { TURSO_DATABASE_URL, TURSO_AUTH_TOKEN } from "astro:env/server";
 
 export type Estado = "pendiente" | "aprobado" | "rechazado";
 export const ESTADOS: Estado[] = ["pendiente", "aprobado", "rechazado"];
@@ -19,22 +18,22 @@ export interface Orden {
   referencia: string;
   numeros: number[];
   total: number;
-  comprobante: string | null;
+  comprobante: string | null; // tipo MIME de la captura, si se subió
   estado: Estado;
   creado: string;
 }
 
-type OrdenRow = Omit<Orden, "numeros"> & { numeros: string };
+export interface Comprobante {
+  tipo: string;
+  datos: Uint8Array<ArrayBuffer>;
+}
 
-export const UPLOAD_DIR = path.resolve(DATA_DIR, "comprobantes");
-mkdirSync(UPLOAD_DIR, { recursive: true });
+if (TURSO_DATABASE_URL.startsWith("file:")) mkdirSync("./data", { recursive: true });
 
-const db = new DatabaseSync(path.resolve(DATA_DIR, "rifa.db"));
-db.exec(`
-  PRAGMA journal_mode = WAL;
-  PRAGMA foreign_keys = ON;
+const client = createClient({ url: TURSO_DATABASE_URL, authToken: TURSO_AUTH_TOKEN });
 
-  CREATE TABLE IF NOT EXISTS ordenes (
+const SCHEMA = [
+  `CREATE TABLE IF NOT EXISTS ordenes (
     id          TEXT PRIMARY KEY,
     rifa_id     TEXT NOT NULL,
     nombre      TEXT NOT NULL,
@@ -44,121 +43,174 @@ db.exec(`
     referencia  TEXT NOT NULL DEFAULT '',
     numeros     TEXT NOT NULL,           -- JSON con los números de la orden
     total       REAL NOT NULL,
-    comprobante TEXT,                    -- nombre del archivo en UPLOAD_DIR
+    comprobante TEXT,                    -- tipo MIME de la captura (datos en la tabla comprobantes)
     estado      TEXT NOT NULL DEFAULT 'pendiente',
     creado      TEXT NOT NULL DEFAULT (datetime('now'))
-  );
-  CREATE INDEX IF NOT EXISTS ordenes_rifa ON ordenes (rifa_id, estado);
-
-  -- Un número solo puede pertenecer a una orden activa (pendiente o aprobada)
-  CREATE TABLE IF NOT EXISTS boletos (
+  )`,
+  `CREATE INDEX IF NOT EXISTS ordenes_rifa ON ordenes (rifa_id, estado)`,
+  // Un número solo puede pertenecer a una orden activa (pendiente o aprobada)
+  `CREATE TABLE IF NOT EXISTS boletos (
     rifa_id  TEXT NOT NULL,
     numero   INTEGER NOT NULL,
-    orden_id TEXT NOT NULL REFERENCES ordenes (id) ON DELETE CASCADE,
+    orden_id TEXT NOT NULL,
     PRIMARY KEY (rifa_id, numero)
-  );
-`);
+  )`,
+  `CREATE INDEX IF NOT EXISTS boletos_orden ON boletos (orden_id)`,
+  `CREATE TABLE IF NOT EXISTS comprobantes (
+    orden_id TEXT PRIMARY KEY,
+    tipo     TEXT NOT NULL,
+    datos    BLOB NOT NULL
+  )`,
+];
 
-const toOrden = (r: OrdenRow): Orden => ({ ...r, numeros: JSON.parse(r.numeros) });
-
-function transaction<T>(fn: () => T): T {
-  db.exec("BEGIN IMMEDIATE");
-  try {
-    const out = fn();
-    db.exec("COMMIT");
-    return out;
-  } catch (e) {
-    db.exec("ROLLBACK");
+// Crea las tablas la primera vez que se usa la base en cada instancia
+let listo: Promise<unknown> | undefined;
+async function db() {
+  listo ??= client.batch(SCHEMA, "write").catch((e) => {
+    listo = undefined;
     throw e;
-  }
+  });
+  await listo;
+  return client;
 }
+
+const toOrden = (r: Row): Orden => ({
+  id: String(r.id),
+  rifa_id: String(r.rifa_id),
+  nombre: String(r.nombre),
+  cedula: String(r.cedula),
+  telefono: String(r.telefono),
+  email: String(r.email),
+  referencia: String(r.referencia),
+  numeros: JSON.parse(String(r.numeros)),
+  total: Number(r.total),
+  comprobante: r.comprobante == null ? null : String(r.comprobante),
+  estado: String(r.estado) as Estado,
+  creado: String(r.creado),
+});
+
+const esConflicto = (e: unknown) => /CONSTRAINT/i.test(String((e as { code?: string }).code ?? e));
 
 function nuevoId() {
   const abc = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-  const exists = db.prepare("SELECT 1 FROM ordenes WHERE id = ?");
-  for (;;) {
-    let id = "T-";
-    for (let i = 0; i < 6; i++) id += abc[Math.floor(Math.random() * abc.length)];
-    if (!exists.get(id)) return id;
-  }
+  let id = "T-";
+  for (let i = 0; i < 6; i++) id += abc[Math.floor(Math.random() * abc.length)];
+  return id;
 }
+
+const insertarBoletos = (rifaId: string, numeros: number[], ordenId: string): InStatement => ({
+  sql: `INSERT INTO boletos (rifa_id, numero, orden_id) VALUES ${numeros.map(() => "(?, ?, ?)").join(", ")}`,
+  args: numeros.flatMap((n) => [rifaId, n, ordenId]),
+});
 
 // ---------- Boletos ----------
 
-export function vendidos(rifaId: string): number[] {
-  return db
-    .prepare("SELECT numero FROM boletos WHERE rifa_id = ? ORDER BY numero")
-    .all(rifaId)
-    .map((r) => Number(r.numero));
+export async function vendidos(rifaId: string): Promise<number[]> {
+  const rs = await (await db()).execute({
+    sql: "SELECT numero FROM boletos WHERE rifa_id = ? ORDER BY numero",
+    args: [rifaId],
+  });
+  return rs.rows.map((r) => Number(r.numero));
 }
 
-export function conteoVendidos(): Record<string, number> {
-  const out: Record<string, number> = {};
-  for (const r of db.prepare("SELECT rifa_id, COUNT(*) n FROM boletos GROUP BY rifa_id").all()) {
-    out[String(r.rifa_id)] = Number(r.n);
-  }
-  return out;
+export async function conteoVendidos(): Promise<Record<string, number>> {
+  const rs = await (await db()).execute("SELECT rifa_id, COUNT(*) n FROM boletos GROUP BY rifa_id");
+  return Object.fromEntries(rs.rows.map((r) => [String(r.rifa_id), Number(r.n)]));
 }
 
-function ocupados(rifaId: string, numeros: number[]): number[] {
-  const q = db.prepare("SELECT 1 FROM boletos WHERE rifa_id = ? AND numero = ?");
-  return numeros.filter((n) => q.get(rifaId, n));
-}
-
-function reservar(rifaId: string, numeros: number[], ordenId: string) {
-  const ins = db.prepare("INSERT INTO boletos (rifa_id, numero, orden_id) VALUES (?, ?, ?)");
-  for (const n of numeros) ins.run(rifaId, n, ordenId);
+async function ocupados(rifaId: string, numeros: number[]): Promise<number[]> {
+  const rs = await (await db()).execute({
+    sql: `SELECT numero FROM boletos WHERE rifa_id = ? AND numero IN (${numeros.map(() => "?").join(", ")})`,
+    args: [rifaId, ...numeros],
+  });
+  return rs.rows.map((r) => Number(r.numero)).sort((a, b) => a - b);
 }
 
 // ---------- Órdenes ----------
 
-export type NuevaOrden = Omit<Orden, "id" | "estado" | "creado">;
+export type NuevaOrden = Omit<Orden, "id" | "estado" | "creado" | "comprobante"> & {
+  comprobante: Comprobante | null;
+};
 
-export function crearOrden(data: NuevaOrden): { orden: Orden } | { conflicto: number[] } {
-  return transaction(() => {
-    const tomados = ocupados(data.rifa_id, data.numeros);
-    if (tomados.length) return { conflicto: tomados };
-
+/**
+ * Crea la orden y reserva sus números en una sola operación atómica.
+ * Si otro comprador ya tomó algún número, no guarda nada y devuelve cuáles.
+ */
+export async function crearOrden(data: NuevaOrden): Promise<{ orden: Orden } | { conflicto: number[] }> {
+  const c = await db();
+  for (let intento = 0; intento < 5; intento++) {
     const id = nuevoId();
-    db.prepare(
-      `INSERT INTO ordenes (id, rifa_id, nombre, cedula, telefono, email, referencia, numeros, total, comprobante)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    ).run(
-      id, data.rifa_id, data.nombre, data.cedula, data.telefono, data.email,
-      data.referencia, JSON.stringify(data.numeros), data.total, data.comprobante,
-    );
-    reservar(data.rifa_id, data.numeros, id);
-    return { orden: obtenerOrden(id)! };
-  });
+    const stmts: InStatement[] = [
+      {
+        sql: `INSERT INTO ordenes (id, rifa_id, nombre, cedula, telefono, email, referencia, numeros, total, comprobante)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        args: [
+          id, data.rifa_id, data.nombre, data.cedula, data.telefono, data.email,
+          data.referencia, JSON.stringify(data.numeros), data.total, data.comprobante?.tipo ?? null,
+        ],
+      },
+      insertarBoletos(data.rifa_id, data.numeros, id),
+    ];
+    if (data.comprobante) {
+      stmts.push({
+        sql: "INSERT INTO comprobantes (orden_id, tipo, datos) VALUES (?, ?, ?)",
+        args: [id, data.comprobante.tipo, data.comprobante.datos],
+      });
+    }
+    try {
+      await c.batch(stmts, "write");
+      return { orden: (await obtenerOrden(id))! };
+    } catch (e) {
+      if (!esConflicto(e)) throw e;
+      const tomados = await ocupados(data.rifa_id, data.numeros);
+      if (tomados.length) return { conflicto: tomados };
+      // Si no hubo números tomados, chocó el id de la orden: se reintenta con otro
+    }
+  }
+  throw new Error("No se pudo generar un id de orden único");
 }
 
-export function obtenerOrden(id: string): Orden | null {
-  const r = db.prepare("SELECT * FROM ordenes WHERE id = ?").get(id) as OrdenRow | undefined;
-  return r ? toOrden(r) : null;
+export async function obtenerOrden(id: string): Promise<Orden | null> {
+  const rs = await (await db()).execute({ sql: "SELECT * FROM ordenes WHERE id = ?", args: [id] });
+  return rs.rows[0] ? toOrden(rs.rows[0]) : null;
+}
+
+export async function obtenerComprobante(ordenId: string): Promise<Comprobante | null> {
+  const rs = await (await db()).execute({
+    sql: "SELECT tipo, datos FROM comprobantes WHERE orden_id = ?",
+    args: [ordenId],
+  });
+  const r = rs.rows[0];
+  if (!r) return null;
+  return { tipo: String(r.tipo), datos: new Uint8Array(r.datos as ArrayBuffer) };
 }
 
 /**
  * Cambia el estado de una orden. Rechazar libera sus números;
  * reactivar una rechazada intenta reservarlos de nuevo.
  */
-export function cambiarEstado(id: string, estado: Estado): { ok: true } | { error: string } {
-  return transaction(() => {
-    const o = obtenerOrden(id);
-    if (!o) return { error: "La orden no existe" };
-    if (o.estado === estado) return { ok: true };
+export async function cambiarEstado(id: string, estado: Estado): Promise<{ ok: true } | { error: string }> {
+  const o = await obtenerOrden(id);
+  if (!o) return { error: "La orden no existe" };
+  if (o.estado === estado) return { ok: true };
 
-    if (estado === "rechazado") {
-      db.prepare("DELETE FROM boletos WHERE orden_id = ?").run(id);
-    } else if (o.estado === "rechazado") {
-      const tomados = ocupados(o.rifa_id, o.numeros);
-      if (tomados.length) {
-        return { error: `No se puede reactivar: los números ${tomados.join(", ")} ya fueron tomados por otra orden` };
-      }
-      reservar(o.rifa_id, o.numeros, id);
+  const actualizar: InStatement = { sql: "UPDATE ordenes SET estado = ? WHERE id = ?", args: [estado, id] };
+  const c = await db();
+
+  if (estado === "rechazado") {
+    await c.batch([{ sql: "DELETE FROM boletos WHERE orden_id = ?", args: [id] }, actualizar], "write");
+  } else if (o.estado === "rechazado") {
+    try {
+      await c.batch([insertarBoletos(o.rifa_id, o.numeros, id), actualizar], "write");
+    } catch (e) {
+      if (!esConflicto(e)) throw e;
+      const tomados = await ocupados(o.rifa_id, o.numeros);
+      return { error: `No se puede reactivar: los números ${tomados.join(", ")} ya fueron tomados por otra orden` };
     }
-    db.prepare("UPDATE ordenes SET estado = ? WHERE id = ?").run(estado, id);
-    return { ok: true };
-  });
+  } else {
+    await c.execute(actualizar);
+  }
+  return { ok: true };
 }
 
 export interface FiltroOrdenes {
@@ -167,63 +219,77 @@ export interface FiltroOrdenes {
   q?: string; // nombre, cédula, teléfono, referencia, orden o número de boleto
 }
 
-export function listarOrdenes(f: FiltroOrdenes = {}): Orden[] {
+export async function listarOrdenes(f: FiltroOrdenes = {}): Promise<Orden[]> {
   const where: string[] = [];
-  const params: (string | number)[] = [];
-  if (f.rifa) { where.push("rifa_id = ?"); params.push(f.rifa); }
-  if (f.estado) { where.push("estado = ?"); params.push(f.estado); }
+  const args: (string | number)[] = [];
+  if (f.rifa) { where.push("rifa_id = ?"); args.push(f.rifa); }
+  if (f.estado) { where.push("estado = ?"); args.push(f.estado); }
   const q = f.q?.trim();
   if (q) {
     const like = `%${q}%`;
     const parts = ["nombre LIKE ?", "cedula LIKE ?", "telefono LIKE ?", "referencia LIKE ?", "id LIKE ?"];
-    params.push(like, like, like, like, like);
+    args.push(like, like, like, like, like);
     if (/^\d+$/.test(q)) {
       parts.push("EXISTS (SELECT 1 FROM json_each(ordenes.numeros) WHERE value = ?)");
-      params.push(Number(q));
+      args.push(Number(q));
     }
     where.push(`(${parts.join(" OR ")})`);
   }
   const sql = `SELECT * FROM ordenes ${where.length ? `WHERE ${where.join(" AND ")}` : ""} ORDER BY creado DESC, id DESC`;
-  return (db.prepare(sql).all(...params) as OrdenRow[]).map(toOrden);
+  const rs = await (await db()).execute({ sql, args });
+  return rs.rows.map(toOrden);
 }
 
 /** Búsqueda pública del verificador: por teléfono o número de boleto. */
-export function buscarParaVerificador(rifaId: string, q: string): Orden[] {
+export async function buscarParaVerificador(rifaId: string, q: string): Promise<Orden[]> {
   const digits = q.replace(/\D/g, "");
   if (!digits) return [];
-  const rows = db
-    .prepare(
-      `SELECT * FROM ordenes
-       WHERE rifa_id = ? AND (
-         (length(?) >= 7 AND telefono LIKE '%' || ?)
-         OR EXISTS (SELECT 1 FROM json_each(ordenes.numeros) WHERE value = ?)
-       )
-       ORDER BY creado DESC LIMIT 20`,
-    )
-    .all(rifaId, digits, digits.replace(/^0+/, ""), Number(digits)) as OrdenRow[];
-  return rows.map(toOrden);
+  const rs = await (await db()).execute({
+    sql: `SELECT * FROM ordenes
+          WHERE rifa_id = ? AND (
+            (length(?) >= 7 AND telefono LIKE '%' || ?)
+            OR EXISTS (SELECT 1 FROM json_each(ordenes.numeros) WHERE value = ?)
+          )
+          ORDER BY creado DESC LIMIT 20`,
+    args: [rifaId, digits, digits.replace(/^0+/, ""), Number(digits)],
+  });
+  return rs.rows.map(toOrden);
 }
 
-export function resumen(rifa?: string) {
-  const where = rifa ? "WHERE rifa_id = ?" : "";
-  const params = rifa ? [rifa] : [];
-  const rows = db
-    .prepare(`SELECT estado, COUNT(*) n, COALESCE(SUM(total), 0) total, COALESCE(SUM(json_array_length(numeros)), 0) boletos
-              FROM ordenes ${where} GROUP BY estado`)
-    .all(...params);
-  const out = Object.fromEntries(ESTADOS.map((e) => [e, { ordenes: 0, total: 0, boletos: 0 }])) as Record<
-    Estado,
-    { ordenes: number; total: number; boletos: number }
-  >;
+export type Resumen = Record<Estado, { ordenes: number; total: number; boletos: number }>;
+
+/** Totales por estado. Sin rifa, devuelve el global; con rifa, solo esa. */
+export async function resumen(rifa?: string): Promise<Resumen> {
+  const rs = await (await db()).execute({
+    sql: `SELECT estado, COUNT(*) n, COALESCE(SUM(total), 0) total, COALESCE(SUM(json_array_length(numeros)), 0) boletos
+          FROM ordenes ${rifa ? "WHERE rifa_id = ?" : ""} GROUP BY estado`,
+    args: rifa ? [rifa] : [],
+  });
+  return armarResumen(rs.rows);
+}
+
+/** Totales por estado de todas las rifas en una sola consulta. */
+export async function resumenPorRifa(): Promise<Record<string, Resumen>> {
+  const rs = await (await db()).execute(
+    `SELECT rifa_id, estado, COUNT(*) n, COALESCE(SUM(total), 0) total, COALESCE(SUM(json_array_length(numeros)), 0) boletos
+     FROM ordenes GROUP BY rifa_id, estado`,
+  );
+  const grupos: Record<string, Row[]> = {};
+  for (const r of rs.rows) (grupos[String(r.rifa_id)] ??= []).push(r);
+  return Object.fromEntries(Object.entries(grupos).map(([id, rows]) => [id, armarResumen(rows)]));
+}
+
+export function resumenVacio(): Resumen {
+  return armarResumen([]);
+}
+
+function armarResumen(rows: Row[]): Resumen {
+  const out = Object.fromEntries(ESTADOS.map((e) => [e, { ordenes: 0, total: 0, boletos: 0 }])) as Resumen;
   for (const r of rows) {
-    const e = r.estado as Estado;
+    const e = String(r.estado) as Estado;
     if (out[e]) out[e] = { ordenes: Number(r.n), total: Number(r.total), boletos: Number(r.boletos) };
   }
   return out;
-}
-
-export function guardarComprobante(id: string, archivo: string) {
-  db.prepare("UPDATE ordenes SET comprobante = ? WHERE id = ?").run(archivo, id);
 }
 
 export interface BoletoExport {
@@ -235,20 +301,19 @@ export interface BoletoExport {
 }
 
 /** Boletos de órdenes aprobadas de una rifa, ordenados por número (para el sorteo). */
-export function boletosAprobados(rifaId: string): BoletoExport[] {
-  return db
-    .prepare(
-      `SELECT b.numero, o.id orden, o.nombre, o.cedula, o.telefono
-       FROM boletos b JOIN ordenes o ON o.id = b.orden_id
-       WHERE b.rifa_id = ? AND o.estado = 'aprobado'
-       ORDER BY b.numero`,
-    )
-    .all(rifaId)
-    .map((r) => ({
-      numero: Number(r.numero),
-      orden: String(r.orden),
-      nombre: String(r.nombre),
-      cedula: String(r.cedula),
-      telefono: String(r.telefono),
-    }));
+export async function boletosAprobados(rifaId: string): Promise<BoletoExport[]> {
+  const rs = await (await db()).execute({
+    sql: `SELECT b.numero, o.id orden, o.nombre, o.cedula, o.telefono
+          FROM boletos b JOIN ordenes o ON o.id = b.orden_id
+          WHERE b.rifa_id = ? AND o.estado = 'aprobado'
+          ORDER BY b.numero`,
+    args: [rifaId],
+  });
+  return rs.rows.map((r) => ({
+    numero: Number(r.numero),
+    orden: String(r.orden),
+    nombre: String(r.nombre),
+    cedula: String(r.cedula),
+    telefono: String(r.telefono),
+  }));
 }

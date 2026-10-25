@@ -10,7 +10,7 @@ if (!rifa) return Astro.redirect("/", 302);
 const activa = rifa.estado === "activa";
 const premios = premiosDe(rifa);
 const paquetes = paquetesDe(rifa);
-const ocupados = vendidos(rifa.id);
+const ocupados = await vendidos(rifa.id);
 const pct = Math.round((ocupados.length / rifa.totalBoletos) * 100);
 const digitos = String(rifa.totalBoletos - 1).length;
 

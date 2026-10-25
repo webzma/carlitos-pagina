@@ -26,7 +26,7 @@ const pasos = [
 ];
 
 const destacada = activas[0] ?? RIFAS[0];
-const vendidos = conteoVendidos();
+const vendidos = await conteoVendidos();
 const precioMin = Math.min(...activas.map((r) => r.precio));
 ---
 

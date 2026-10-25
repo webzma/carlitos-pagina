@@ -7,10 +7,10 @@ const enmascarar = (nombre: string) => {
   return a ? `${n} ${a[0]}.` : n;
 };
 
-export const GET: APIRoute = ({ url }) => {
+export const GET: APIRoute = async ({ url }) => {
   const rifa = url.searchParams.get("rifa") ?? "";
   const q = url.searchParams.get("q") ?? "";
-  const ordenes = buscarParaVerificador(rifa, q).map((o) => ({
+  const ordenes = (await buscarParaVerificador(rifa, q)).map((o) => ({
     id: o.id,
     nombre: enmascarar(o.nombre),
     numeros: o.numeros,

@@ -1,7 +1,7 @@
 ---
 import "../../styles/global.css";
 import { esAdmin } from "../../lib/auth";
-import { listarOrdenes, resumen, ESTADOS, type Estado } from "../../lib/db";
+import { listarOrdenes, resumen, resumenPorRifa, resumenVacio, ESTADOS, type Estado } from "../../lib/db";
 import { RIFAS, SITE, money } from "../../data/config";
 
 const logueado = esAdmin(Astro.cookies);
@@ -13,9 +13,10 @@ const q = url.searchParams.get("q") ?? "";
 const msg = url.searchParams.get("msg");
 const tipo = url.searchParams.get("tipo") === "err" ? "err" : "ok";
 
-const ordenes = logueado ? listarOrdenes({ rifa: rifa || undefined, estado, q }) : [];
-const stats = logueado ? resumen(rifa || undefined) : null;
-const porRifa = logueado ? RIFAS.map((r) => ({ rifa: r, stats: resumen(r.id) })) : [];
+const [ordenes, stats, resumenes] = logueado
+  ? await Promise.all([listarOrdenes({ rifa: rifa || undefined, estado, q }), resumen(rifa || undefined), resumenPorRifa()])
+  : [[], null, {} as Record<string, never>];
+const porRifa = RIFAS.map((r) => ({ rifa: r, stats: resumenes[r.id] ?? resumenVacio() }));
 
 const tituloRifa = (id: string) => RIFAS.find((r) => r.id === id)?.titulo ?? id;
 const digitosDe = (id: string) => String((RIFAS.find((r) => r.id === id)?.totalBoletos ?? 1000) - 1).length;

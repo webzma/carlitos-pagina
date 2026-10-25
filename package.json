@@ -6,11 +6,11 @@
   "scripts": {
     "dev": "astro dev",
     "build": "astro build",
-    "preview": "astro preview",
-    "start": "node ./dist/server/entry.mjs"
+    "preview": "astro preview"
   },
   "dependencies": {
-    "@astrojs/node": "^11.1.9",
+    "@astrojs/vercel": "^11.0.16",
+    "@libsql/client": "^0.18.0",
     "astro": "^7.3.8"
   },
   "devDependencies": {
