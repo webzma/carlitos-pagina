@@ -3,6 +3,7 @@ import Link from "next/link";
 import { esAdmin } from "@/lib/auth";
 import {
   listarOrdenes,
+  listarRifas,
   resumen,
   resumenPorRifa,
   resumenVacio,
@@ -10,9 +11,10 @@ import {
   type Estado,
   type Orden,
 } from "@/lib/db";
-import { RIFAS, SITE, money, digitosDe, pad } from "@/data/config";
-import { actualizarEstado, login, logout } from "./actions";
+import { SITE, money, digitosDe, pad, type Rifa } from "@/data/config";
+import { actualizarEstado, login } from "./actions";
 import { ConfirmSubmit, CopyNumbers } from "./ClientButtons";
+import { AdminFrame } from "./AdminFrame";
 
 export const metadata: Metadata = { title: "Admin", robots: { index: false, follow: false } };
 
@@ -32,10 +34,11 @@ export default async function AdminPage({ searchParams }: { searchParams: Search
   const msg = param("msg");
   const tipo = param("tipo") === "err" ? "err" : "ok";
 
-  const [ordenes, stats, resumenes] = await Promise.all([
+  const [ordenes, stats, resumenes, rifas] = await Promise.all([
     listarOrdenes({ rifa: rifa || undefined, estado, q }),
     resumen(rifa || undefined),
     resumenPorRifa(),
+    listarRifas(),
   ]);
 
   // URL actual sin el mensaje, para volver tras una acción
@@ -90,7 +93,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Search
             Solo se exportan los boletos <b>aprobados</b>. Valida los pendientes antes de exportar.
           </p>
           <div className="export-list">
-            {RIFAS.map((r) => {
+            {rifas.map((r) => {
               const st = resumenes[r.id] ?? resumenVacio();
               const vacio = st.aprobado.boletos === 0;
               return (
@@ -122,7 +125,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Search
         <form className="filters" method="get">
           <select name="rifa" defaultValue={rifa}>
             <option value="">Todas las rifas</option>
-            {RIFAS.map((r) => (
+            {rifas.map((r) => (
               <option key={r.id} value={r.id}>
                 {r.titulo}
               </option>
@@ -167,7 +170,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Search
               </thead>
               <tbody>
                 {ordenes.map((o) => (
-                  <FilaOrden key={o.id} orden={o} volver={volver} />
+                  <FilaOrden key={o.id} orden={o} rifa={rifas.find((r) => r.id === o.rifa_id)} volver={volver} />
                 ))}
               </tbody>
             </table>
@@ -181,8 +184,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Search
   );
 }
 
-function FilaOrden({ orden: o, volver }: { orden: Orden; volver: string }) {
-  const rifa = RIFAS.find((r) => r.id === o.rifa_id);
+function FilaOrden({ orden: o, rifa, volver }: { orden: Orden; rifa: Rifa | undefined; volver: string }) {
   const digitos = rifa ? digitosDe(rifa) : 3;
   const wa = `https://wa.me/${o.telefono}?text=${encodeURIComponent(
     `Hola ${o.nombre.split(" ")[0]}, te escribimos de ${SITE.marca} sobre tu orden ${o.id}.`,
@@ -268,29 +270,6 @@ function fechaVE(s: string) {
     hour: "2-digit",
     minute: "2-digit",
   });
-}
-
-function AdminFrame({ logueado, children }: { logueado: boolean; children: React.ReactNode }) {
-  return (
-    <div className="admin-body">
-      <header className="admin-top">
-        <div className="container">
-          <Link href="/admin" className="logo">
-            <span className="logo-mark">🏆</span>
-            <span>
-              PANEL <b>EL TRIUNFO</b>
-            </span>
-          </Link>
-          {logueado && (
-            <form action={logout}>
-              <button>Cerrar sesión</button>
-            </form>
-          )}
-        </div>
-      </header>
-      {children}
-    </div>
-  );
 }
 
 function Login({ error }: { error: boolean }) {

@@ -3,8 +3,8 @@ import { SiteShell } from "@/components/SiteShell";
 import { RaffleCard } from "@/components/RaffleCard";
 import { Accounts } from "@/components/Accounts";
 import { Faq } from "@/components/Faq";
-import { SITE, RIFAS, money } from "@/data/config";
-import { conteoVendidos } from "@/lib/db";
+import { SITE, money } from "@/data/config";
+import { conteoVendidos, listarRifas } from "@/lib/db";
 
 // Lee la base de datos en cada visita (los vendidos cambian constantemente)
 export const dynamic = "force-dynamic";
@@ -26,11 +26,11 @@ const PASOS = [
 ];
 
 export default async function Home() {
-  const activas = RIFAS.filter((r) => r.estado === "activa");
-  const finalizadas = RIFAS.filter((r) => r.estado !== "activa");
-  const destacada = activas[0] ?? RIFAS[0];
-  const precioMin = Math.min(...(activas.length ? activas : RIFAS).map((r) => r.precio));
-  const vendidos = await conteoVendidos();
+  const [rifas, vendidos] = await Promise.all([listarRifas(), conteoVendidos()]);
+  const activas = rifas.filter((r) => r.estado === "activa");
+  const finalizadas = rifas.filter((r) => r.estado !== "activa");
+  const destacada = activas[0] ?? rifas[0];
+  const precioMin = Math.min(...(activas.length ? activas : rifas).map((r) => r.precio));
 
   return (
     <SiteShell links={LINKS}>
@@ -46,24 +46,30 @@ export default async function Home() {
               estar a un boleto de distancia!
             </p>
             <div className="hero-actions">
-              <Link href={`/rifas/${destacada.id}`} className="btn btn-primary">
+              <Link href={destacada ? `/rifas/${destacada.id}` : "#rifas"} className="btn btn-primary">
                 🎟️ Comprar boletos
               </Link>
-              <Link href={`/rifas/${destacada.id}#verificador`} className="btn btn-ghost">
-                Verificar mis boletos
-              </Link>
+              {destacada && (
+                <Link href={`/rifas/${destacada.id}#verificador`} className="btn btn-ghost">
+                  Verificar mis boletos
+                </Link>
+              )}
             </div>
           </div>
           <div className="hero-art">
             <div className="big">🏆</div>
-            <div className="chip c1">
-              {destacada.icono} {destacada.descripcion.split("+")[0].trim()}
-              <small>{destacada.titulo}</small>
-            </div>
-            <div className="chip c2">
-              Desde {money(precioMin)}
-              <small>por boleto</small>
-            </div>
+            {destacada && (
+              <>
+                <div className="chip c1">
+                  {destacada.icono} {destacada.descripcion.split("+")[0].trim()}
+                  <small>{destacada.titulo}</small>
+                </div>
+                <div className="chip c2">
+                  Desde {money(precioMin)}
+                  <small>por boleto</small>
+                </div>
+              </>
+            )}
           </div>
         </div>
       </section>
@@ -95,21 +101,29 @@ export default async function Home() {
             RIFAS <span>DISPONIBLES</span>
           </h2>
           <p className="section-sub">¡Participa! Los boletos vuelan 🔥</p>
-          <div className="cards">
-            {activas.map((r) => (
-              <RaffleCard key={r.id} rifa={r} vendidos={vendidos[r.id] ?? 0} />
-            ))}
-          </div>
+          {activas.length ? (
+            <div className="cards">
+              {activas.map((r) => (
+                <RaffleCard key={r.id} rifa={r} vendidos={vendidos[r.id] ?? 0} />
+              ))}
+            </div>
+          ) : (
+            <p className="section-sub">Pronto anunciaremos una nueva rifa. ¡Mantente atento!</p>
+          )}
 
-          <h2 className="section-title" style={{ marginTop: 72 }}>
-            RIFAS <span>FINALIZADAS</span>
-          </h2>
-          <p className="section-sub">Conoce a nuestros últimos ganadores</p>
-          <div className="cards">
-            {finalizadas.map((r) => (
-              <RaffleCard key={r.id} rifa={r} vendidos={vendidos[r.id] ?? 0} />
-            ))}
-          </div>
+          {finalizadas.length > 0 && (
+            <>
+              <h2 className="section-title" style={{ marginTop: 72 }}>
+                RIFAS <span>FINALIZADAS</span>
+              </h2>
+              <p className="section-sub">Conoce a nuestros últimos ganadores</p>
+              <div className="cards">
+                {finalizadas.map((r) => (
+                  <RaffleCard key={r.id} rifa={r} vendidos={vendidos[r.id] ?? 0} />
+                ))}
+              </div>
+            </>
+          )}
         </div>
       </section>
 

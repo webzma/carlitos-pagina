@@ -1,5 +1,5 @@
-import { RIFAS, paquetesDe } from "@/data/config";
-import { crearOrden } from "@/lib/db";
+import { paquetesDe } from "@/data/config";
+import { crearOrden, obtenerRifa } from "@/lib/db";
 import { calcularTotal } from "@/lib/precios";
 
 const MAX_BOLETOS = 200;
@@ -18,7 +18,7 @@ export async function POST(request: Request) {
     return json({ error: "Solicitud inválida" }, 400);
   }
 
-  const rifa = RIFAS.find((r) => r.id === texto(fd, "rifa"));
+  const rifa = await obtenerRifa(texto(fd, "rifa"));
   if (!rifa || rifa.estado !== "activa") return json({ error: "Esta rifa no está disponible" }, 400);
   if (new Date(rifa.fecha).getTime() < Date.now()) return json({ error: "La venta de esta rifa ya cerró" }, 400);
 

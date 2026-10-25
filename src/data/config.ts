@@ -1,5 +1,6 @@
 // =====================================================
-//  CONFIGURACIÓN DEMO — cambia aquí marca, rifas y cuentas
+//  CONFIGURACIÓN DEMO — cambia aquí marca y cuentas
+//  (las rifas se administran desde /admin/rifas)
 // =====================================================
 
 export interface Premio {
@@ -49,14 +50,15 @@ export const SITE = {
   moneda: "$",
 };
 
-const PAQUETES_DEFAULT: Paquete[] = [
+export const PAQUETES_DEFAULT: Paquete[] = [
   { cant: 2, desc: 0 },
   { cant: 5, desc: 0.1, tag: "-10%" },
   { cant: 10, desc: 0.15, tag: "MÁS VENDIDO" },
   { cant: 20, desc: 0.2, tag: "-20%" },
 ];
 
-export const RIFAS: Rifa[] = [
+// Rifas con las que se llena la base de datos la primera vez; después se editan desde el admin
+export const RIFAS_INICIALES: Rifa[] = [
   {
     id: "gran-combo-7",
     titulo: "Gran Combo 7.0",

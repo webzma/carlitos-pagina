@@ -3,8 +3,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { SiteShell } from "@/components/SiteShell";
 import { Accounts } from "@/components/Accounts";
-import { RIFAS, premiosDe, paquetesDe, money, fmtDate } from "@/data/config";
-import { vendidos } from "@/lib/db";
+import { premiosDe, paquetesDe, money, fmtDate } from "@/data/config";
+import { obtenerRifa, vendidos } from "@/lib/db";
 import { RifaProvider } from "./RifaContext";
 import { Disponibles, Progreso } from "./Disponibilidad";
 import { Countdown } from "./Countdown";
@@ -28,7 +28,7 @@ type Props = { params: Promise<{ id: string }> };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
-  const rifa = RIFAS.find((r) => r.id === id);
+  const rifa = await obtenerRifa(id);
   if (!rifa) return {};
   return {
     title: rifa.titulo,
@@ -38,7 +38,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function RifaPage({ params }: Props) {
   const { id } = await params;
-  const rifa = RIFAS.find((r) => r.id === id);
+  const rifa = await obtenerRifa(id);
   if (!rifa) notFound();
 
   const activa = rifa.estado === "activa";
@@ -104,7 +104,13 @@ export default async function RifaPage({ params }: Props) {
               </>
             ) : (
               <p className="section-sub">
-                Esta rifa ya finalizó. 🏆 Ganador: <b className="red">{rifa.ganador}</b>
+                Esta rifa ya finalizó.
+                {rifa.ganador && (
+                  <>
+                    {" "}
+                    🏆 Ganador: <b className="red">{rifa.ganador}</b>
+                  </>
+                )}
                 <br />
                 <br />
                 <Link className="btn btn-primary" href="/#rifas">

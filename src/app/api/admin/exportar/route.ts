@@ -1,7 +1,7 @@
 import type { NextRequest } from "next/server";
 import { esAdmin } from "@/lib/auth";
-import { boletosAprobados } from "@/lib/db";
-import { RIFAS, digitosDe, pad } from "@/data/config";
+import { boletosAprobados, obtenerRifa } from "@/lib/db";
+import { digitosDe, pad } from "@/data/config";
 
 // Exporta los boletos aprobados de una rifa para cargarlos en la plataforma del sorteo.
 //   formato=csv → Excel (separador ";"), una fila por boleto con los datos del comprador
@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
   if (!(await esAdmin())) return new Response("No autorizado", { status: 401 });
 
   const params = request.nextUrl.searchParams;
-  const rifa = RIFAS.find((r) => r.id === params.get("rifa"));
+  const rifa = await obtenerRifa(params.get("rifa") ?? "");
   if (!rifa) return new Response("Selecciona una rifa", { status: 400 });
 
   const num = (n: number) => pad(n, digitosDe(rifa));

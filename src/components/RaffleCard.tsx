@@ -35,10 +35,12 @@ export function RaffleCard({ rifa, vendidos }: { rifa: Rifa; vendidos: number })
           </>
         ) : (
           <>
-            <div className="meta">
-              <span>🏆 Ganador</span>
-              <b>{rifa.ganador}</b>
-            </div>
+            {rifa.ganador && (
+              <div className="meta">
+                <span>🏆 Ganador</span>
+                <b>{rifa.ganador}</b>
+              </div>
+            )}
             <Link href={`/rifas/${rifa.id}`} className="btn btn-ghost btn-block">
               Ver evento
             </Link>

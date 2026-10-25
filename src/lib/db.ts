@@ -5,6 +5,7 @@ import "server-only";
 import { createClient, type InStatement, type Row } from "@libsql/client";
 import { mkdirSync } from "node:fs";
 import { env } from "./env";
+import { RIFAS_INICIALES, type Rifa } from "@/data/config";
 
 export type Estado = "pendiente" | "aprobado" | "rechazado";
 export const ESTADOS: Estado[] = ["pendiente", "aprobado", "rechazado"];
@@ -68,12 +69,50 @@ const SCHEMA = [
     tipo     TEXT NOT NULL,
     datos    BLOB NOT NULL
   )`,
+  `CREATE TABLE IF NOT EXISTS rifas (
+    id             TEXT PRIMARY KEY,
+    titulo         TEXT NOT NULL,
+    icono          TEXT NOT NULL,
+    descripcion    TEXT NOT NULL,
+    precio         REAL NOT NULL,
+    total_boletos  INTEGER NOT NULL,
+    fecha          TEXT NOT NULL,           -- ISO con zona horaria, p. ej. 2026-10-31T21:00:00-04:00
+    loteria        TEXT NOT NULL,
+    estado         TEXT NOT NULL DEFAULT 'activa',
+    ganador        TEXT,
+    estilo         TEXT,
+    premios        TEXT,                    -- JSON; NULL = premio único con la descripción
+    paquetes       TEXT,                    -- JSON; NULL = paquetes por defecto
+    creado         TEXT NOT NULL DEFAULT (datetime('now'))
+  )`,
+  // Migraciones de datos ya aplicadas (para no volver a cargar las rifas iniciales si se borran)
+  `CREATE TABLE IF NOT EXISTS migraciones (id TEXT PRIMARY KEY)`,
+];
+
+const COLUMNAS_RIFA = "id, titulo, icono, descripcion, precio, total_boletos, fecha, loteria, estado, ganador, estilo, premios, paquetes";
+const valoresRifa = (r: Rifa) => [
+  r.id, r.titulo, r.icono, r.descripcion, r.precio, r.totalBoletos, r.fecha, r.loteria, r.estado,
+  r.ganador || null, r.estilo || null,
+  r.premios?.length ? JSON.stringify(r.premios) : null,
+  r.paquetes?.length ? JSON.stringify(r.paquetes) : null,
+];
+
+// Carga RIFAS_INICIALES una sola vez, en la misma transacción que marca la migración
+const MIGRACION_RIFAS = "rifas-iniciales";
+const SEMILLA: InStatement[] = [
+  ...RIFAS_INICIALES.map((r) => ({
+    sql: `INSERT OR IGNORE INTO rifas (${COLUMNAS_RIFA})
+          SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+          WHERE NOT EXISTS (SELECT 1 FROM migraciones WHERE id = ?)`,
+    args: [...valoresRifa(r), MIGRACION_RIFAS],
+  })),
+  { sql: "INSERT OR IGNORE INTO migraciones (id) VALUES (?)", args: [MIGRACION_RIFAS] },
 ];
 
 // Crea las tablas la primera vez que se usa la base en cada instancia
 let listo: Promise<unknown> | undefined;
 async function db() {
-  listo ??= cliente().batch(SCHEMA, "write").catch((e) => {
+  listo ??= cliente().batch([...SCHEMA, ...SEMILLA], "write").catch((e) => {
     listo = undefined;
     throw e;
   });
@@ -109,6 +148,79 @@ const insertarBoletos = (rifaId: string, numeros: number[], ordenId: string): In
   sql: `INSERT INTO boletos (rifa_id, numero, orden_id) VALUES ${numeros.map(() => "(?, ?, ?)").join(", ")}`,
   args: numeros.flatMap((n) => [rifaId, n, ordenId]),
 });
+
+// ---------- Rifas ----------
+
+const toRifa = (r: Row): Rifa => ({
+  id: String(r.id),
+  titulo: String(r.titulo),
+  icono: String(r.icono),
+  descripcion: String(r.descripcion),
+  precio: Number(r.precio),
+  totalBoletos: Number(r.total_boletos),
+  fecha: String(r.fecha),
+  loteria: String(r.loteria),
+  estado: String(r.estado) as Rifa["estado"],
+  ganador: r.ganador == null ? undefined : String(r.ganador),
+  estilo: r.estilo == null ? undefined : (String(r.estilo) as Rifa["estilo"]),
+  premios: r.premios == null ? undefined : JSON.parse(String(r.premios)),
+  paquetes: r.paquetes == null ? undefined : JSON.parse(String(r.paquetes)),
+});
+
+/** Activas primero (la más próxima arriba), luego finalizadas (la más reciente arriba). */
+export async function listarRifas(): Promise<Rifa[]> {
+  const rs = await (await db()).execute(
+    `SELECT * FROM rifas
+     ORDER BY estado = 'activa' DESC, CASE WHEN estado = 'activa' THEN fecha END ASC, fecha DESC`,
+  );
+  return rs.rows.map(toRifa);
+}
+
+export async function obtenerRifa(id: string): Promise<Rifa | null> {
+  const rs = await (await db()).execute({ sql: "SELECT * FROM rifas WHERE id = ?", args: [id] });
+  return rs.rows[0] ? toRifa(rs.rows[0]) : null;
+}
+
+export async function crearRifa(r: Rifa): Promise<{ ok: true } | { error: string }> {
+  try {
+    await (await db()).execute({
+      sql: `INSERT INTO rifas (${COLUMNAS_RIFA}) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      args: valoresRifa(r),
+    });
+    return { ok: true };
+  } catch (e) {
+    if (esConflicto(e)) return { error: `Ya existe una rifa con el identificador "${r.id}"` };
+    throw e;
+  }
+}
+
+/** Actualiza una rifa. No permite dejar fuera de rango números que ya fueron reservados. */
+export async function actualizarRifa(r: Rifa): Promise<{ ok: true } | { error: string }> {
+  const c = await db();
+  const rs = await c.execute({ sql: "SELECT MAX(numero) m FROM boletos WHERE rifa_id = ?", args: [r.id] });
+  const mayor = rs.rows[0]?.m;
+  if (mayor != null && Number(mayor) >= r.totalBoletos) {
+    return { error: `Ya hay boletos reservados hasta el número ${mayor}: la rifa necesita al menos ${Number(mayor) + 1} boletos` };
+  }
+  const [, ...valores] = valoresRifa(r);
+  const rsu = await c.execute({
+    sql: `UPDATE rifas SET titulo = ?, icono = ?, descripcion = ?, precio = ?, total_boletos = ?, fecha = ?, loteria = ?,
+          estado = ?, ganador = ?, estilo = ?, premios = ?, paquetes = ? WHERE id = ?`,
+    args: [...valores, r.id],
+  });
+  return rsu.rowsAffected ? { ok: true } : { error: "La rifa no existe" };
+}
+
+/** Borra una rifa solo si no tiene órdenes (para no perder registros de pagos). */
+export async function borrarRifa(id: string): Promise<{ ok: true } | { error: string }> {
+  const c = await db();
+  const rs = await c.execute({ sql: "SELECT COUNT(*) n FROM ordenes WHERE rifa_id = ?", args: [id] });
+  if (Number(rs.rows[0].n) > 0) {
+    return { error: "No se puede borrar una rifa con órdenes registradas. Márcala como finalizada." };
+  }
+  await c.execute({ sql: "DELETE FROM rifas WHERE id = ?", args: [id] });
+  return { ok: true };
+}
 
 // ---------- Boletos ----------
 
