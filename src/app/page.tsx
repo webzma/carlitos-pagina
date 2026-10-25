@@ -3,7 +3,9 @@ import { SiteShell } from "@/components/SiteShell";
 import { RaffleCard } from "@/components/RaffleCard";
 import { Accounts } from "@/components/Accounts";
 import { Faq } from "@/components/Faq";
+import { IconFlame, IconMapPin, IconTicket, IconTrophy } from "@tabler/icons-react";
 import { SITE, money } from "@/data/config";
+import { IconoPremio } from "@/components/IconoPremio";
 import { conteoVendidos, listarRifas } from "@/lib/db";
 
 // Lee la base de datos en cada visita (los vendidos cambian constantemente)
@@ -37,7 +39,9 @@ export default async function Home() {
       <section className="hero" id="inicio">
         <div className="container">
           <div>
-            <div className="hero-tag">📍 {SITE.ciudad} · Sorteos con lotería oficial</div>
+            <div className="hero-tag">
+              <IconMapPin /> {SITE.ciudad} · Sorteos con lotería oficial
+            </div>
             <h1>
               RIFA<span>EL TRIUNFO</span>
             </h1>
@@ -47,7 +51,7 @@ export default async function Home() {
             </p>
             <div className="hero-actions">
               <Link href={destacada ? `/rifas/${destacada.id}` : "#rifas"} className="btn btn-primary">
-                🎟️ Comprar boletos
+                <IconTicket /> Comprar boletos
               </Link>
               {destacada && (
                 <Link href={`/rifas/${destacada.id}#verificador`} className="btn btn-ghost">
@@ -57,11 +61,13 @@ export default async function Home() {
             </div>
           </div>
           <div className="hero-art">
-            <div className="big">🏆</div>
+            <div className="big">
+              <IconTrophy stroke={1.25} />
+            </div>
             {destacada && (
               <>
                 <div className="chip c1">
-                  {destacada.icono} {destacada.descripcion.split("+")[0].trim()}
+                  <IconoPremio icono={destacada.icono} /> {destacada.descripcion.split("+")[0].trim()}
                   <small>{destacada.titulo}</small>
                 </div>
                 <div className="chip c2">
@@ -100,7 +106,7 @@ export default async function Home() {
           <h2 className="section-title">
             RIFAS <span>DISPONIBLES</span>
           </h2>
-          <p className="section-sub">¡Participa! Los boletos vuelan 🔥</p>
+          <p className="section-sub">¡Participa! Los boletos vuelan <IconFlame /></p>
           {activas.length ? (
             <div className="cards">
               {activas.map((r) => (

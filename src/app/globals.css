@@ -251,7 +251,6 @@ input, select, textarea { font: inherit; color: var(--text); }
   background: #222226; transition: .2s;
 }
 .socials a:hover { background: var(--red); }
-.socials svg { width: 18px; height: 18px; fill: #fff; }
 .footer-bottom {
   margin-top: 40px; padding-top: 20px; border-top: 1px solid #2a2a2e;
   display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px;
@@ -267,7 +266,6 @@ input, select, textarea { font: inherit; color: var(--text); }
   background: #25d366; color: #fff; font-weight: 700;
   padding: 12px 18px; border-radius: 999px; box-shadow: 0 10px 30px rgba(37, 211, 102, .4);
 }
-.wa-float svg { width: 22px; height: 22px; fill: #fff; }
 .wa-float:hover { transform: scale(1.05); }
 /* En la página de la rifa sube el botón para no tapar el carrito fijo */
 body:has(.cart) .wa-float { bottom: 110px; }
@@ -584,3 +582,37 @@ body:has(.cart) .wa-float { bottom: 110px; }
   .orders .actions button, .orders .actions a { padding: 10px 12px; font-size: .8rem; }
   .table-wrap .empty { background: var(--bg); border-radius: 16px; box-shadow: var(--shadow); }
 }
+
+/* ---------- Íconos (Tabler) ---------- */
+.tabler-icon { width: 1.2em; height: 1.2em; flex: none; vertical-align: -0.22em; }
+.logo-mark .tabler-icon { width: 24px; height: 24px; }
+.menu-btn .tabler-icon { width: 28px; height: 28px; vertical-align: middle; }
+.hero-art .big .tabler-icon { width: 1em; height: 1em; color: #ffd166; }
+.card-img .tabler-icon { width: 96px; height: 96px; color: #fff; }
+.card-img.gray .tabler-icon { color: #fff; }
+.prize-visual .tabler-icon { width: 1.1em; height: 1.1em; color: #fff; }
+.prize .ico .tabler-icon { width: 56px; height: 56px; color: var(--red); }
+.success .ico .tabler-icon { width: 72px; height: 72px; color: var(--red); }
+.modal-close .tabler-icon { width: 24px; height: 24px; }
+.socials .tabler-icon, .wa-float .tabler-icon { width: 22px; height: 22px; color: #fff; }
+.footer li .tabler-icon { color: var(--red); }
+.hero-tag .tabler-icon, .section-sub .tabler-icon { color: var(--red); }
+.cart-chips .tabler-icon { width: 1em; height: 1em; }
+.chip.c1 .tabler-icon { color: var(--red); }
+.upload .tabler-icon { width: 1.4em; height: 1.4em; }
+.btn .tabler-icon { width: 1.35em; height: 1.35em; vertical-align: 0; }
+.orders .actions .tabler-icon { width: 1.1em; height: 1.1em; }
+
+.icon-picker { display: grid; grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); gap: 8px; }
+.icon-picker label {
+  display: grid; justify-items: center; gap: 4px; padding: 10px 4px; border-radius: 12px; cursor: pointer;
+  border: 1px solid #d6d6dc; background: var(--bg); color: var(--text); font-size: .7rem; text-align: center; line-height: 1.2;
+}
+.icon-picker input { position: absolute; opacity: 0; pointer-events: none; }
+.icon-picker .tabler-icon { width: 28px; height: 28px; }
+.icon-picker label:has(input:checked) { border-color: var(--red); background: var(--red-soft); color: var(--red-2); }
+.icon-picker label:has(input:focus-visible) { outline: 2px solid var(--red); outline-offset: 2px; }
+.icon-keys { margin-top: 8px; font-size: .82rem; }
+.icon-keys summary { cursor: pointer; color: var(--red); font-weight: 600; }
+.icon-keys div { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.icon-keys span { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 8px; background: var(--bg-2); font-family: ui-monospace, monospace; }

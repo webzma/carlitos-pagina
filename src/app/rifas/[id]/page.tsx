@@ -3,6 +3,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { SiteShell } from "@/components/SiteShell";
 import { Accounts } from "@/components/Accounts";
+import { IconTrophy } from "@tabler/icons-react";
+import { IconoPremio } from "@/components/IconoPremio";
 import { premiosDe, paquetesDe, money, fmtDate } from "@/data/config";
 import { obtenerRifa, vendidos } from "@/lib/db";
 import { RifaProvider } from "./RifaContext";
@@ -62,7 +64,7 @@ export default async function RifaPage({ params }: Props) {
           <div className="container raffle-top">
             <div className="prize-visual">
               <span className={`badge ${activa ? "live" : "done"}`}>{activa ? "En venta" : "Finalizada"}</span>
-              {rifa.icono}
+              <IconoPremio icono={rifa.icono} stroke={1.25} />
             </div>
             <div className="raffle-info">
               <h1>{rifa.titulo}</h1>
@@ -108,7 +110,7 @@ export default async function RifaPage({ params }: Props) {
                 {rifa.ganador && (
                   <>
                     {" "}
-                    🏆 Ganador: <b className="red">{rifa.ganador}</b>
+                    <IconTrophy /> Ganador: <b className="red">{rifa.ganador}</b>
                   </>
                 )}
                 <br />
@@ -132,7 +134,9 @@ export default async function RifaPage({ params }: Props) {
               {premios.map((p) => (
                 <div className="prize" key={p.lugar}>
                   <div className="place">{p.lugar}</div>
-                  <div className="ico">{p.icono}</div>
+                  <div className="ico">
+                    <IconoPremio icono={p.icono} />
+                  </div>
                   <h4>{p.titulo}</h4>
                   <p>{p.detalle}</p>
                 </div>
@@ -143,7 +147,7 @@ export default async function RifaPage({ params }: Props) {
 
         <Verificador />
         <Sorteador />
-        <Accounts subtitle="¡Mucha suerte! 🏆" />
+        <Accounts subtitle="¡Mucha suerte!" />
       </RifaProvider>
     </SiteShell>
   );

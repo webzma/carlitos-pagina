@@ -3,7 +3,9 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { esAdmin } from "@/lib/auth";
 import { conteoVendidos, listarRifas, resumenPorRifa, ESTADOS } from "@/lib/db";
+import { IconExternalLink, IconPencil, IconPlus, IconTrash, IconTrophy } from "@tabler/icons-react";
 import { money, fmtDate } from "@/data/config";
+import { IconoPremio } from "@/components/IconoPremio";
 import { AdminFrame } from "../AdminFrame";
 import { ConfirmSubmit } from "../ClientButtons";
 import { eliminarRifa } from "./actions";
@@ -26,7 +28,7 @@ export default async function RifasAdminPage({ searchParams }: { searchParams: S
         <div className="admin-head">
           <h1>RIFAS</h1>
           <Link className="btn btn-primary" href="/admin/rifas/nueva">
-            + Nueva rifa
+            <IconPlus /> Nueva rifa
           </Link>
         </div>
 
@@ -55,18 +57,22 @@ export default async function RifasAdminPage({ searchParams }: { searchParams: S
                     <tr key={r.id}>
                       <td data-label="Rifa" className="who">
                         <b>
-                          {r.icono} {r.titulo}
+                          <IconoPremio icono={r.icono} /> {r.titulo}
                         </b>
                         <small>{r.descripcion}</small>
                         <Link className="link" href={`/rifas/${r.id}`} target="_blank">
-                          /rifas/{r.id} ↗
+                          /rifas/{r.id} <IconExternalLink />
                         </Link>
                       </td>
                       <td data-label="Estado">
                         <span className={`status ${r.estado === "activa" ? "aprobado" : "rechazado"}`}>
                           {r.estado === "activa" ? "Activa" : "Finalizada"}
                         </span>
-                        {r.ganador && <span className="muted">🏆 {r.ganador}</span>}
+                        {r.ganador && (
+                          <span className="muted">
+                            <IconTrophy /> {r.ganador}
+                          </span>
+                        )}
                       </td>
                       <td data-label="Sorteo">
                         {fmtDate(r.fecha)}
@@ -82,13 +88,13 @@ export default async function RifasAdminPage({ searchParams }: { searchParams: S
                       <td data-label="Acciones">
                         <div className="actions">
                           <Link className="act-reset" href={`/admin/rifas/${r.id}`}>
-                            ✎ Editar
+                            <IconPencil /> Editar
                           </Link>
                           {ordenes === 0 && (
                             <form action={eliminarRifa}>
                               <input type="hidden" name="id" value={r.id} />
                               <ConfirmSubmit className="act-no" mensaje={`¿Borrar la rifa "${r.titulo}"? No se puede deshacer.`}>
-                                🗑 Borrar
+                                <IconTrash /> Borrar
                               </ConfirmSubmit>
                             </form>
                           )}

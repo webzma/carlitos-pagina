@@ -1,6 +1,14 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { headers } from "next/headers";
+import {
+  IconAlertTriangle,
+  IconArrowBackUp,
+  IconBrandWhatsapp,
+  IconCheck,
+  IconDownload,
+  IconX,
+} from "@tabler/icons-react";
 import { esAdmin } from "@/lib/auth";
 import {
   listarOrdenes,
@@ -73,7 +81,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Search
             {msg}
             {aprobada?.estado === "aprobado" && (
               <a className="btn btn-sm btn-wa" href={waConfirmacion(aprobada)} target="_blank" rel="noopener">
-                📲 Enviar confirmación por WhatsApp a {aprobada.nombre.split(" ")[0]}
+                <IconBrandWhatsapp /> Enviar confirmación por WhatsApp a {aprobada.nombre.split(" ")[0]}
               </a>
             )}
           </div>
@@ -120,16 +128,19 @@ export default async function AdminPage({ searchParams }: { searchParams: Search
                     <span className="muted">
                       {st.aprobado.boletos} boletos aprobados
                       {st.pendiente.boletos > 0 && (
-                        <span className="warn-text"> · ⚠ {st.pendiente.boletos} pendientes por validar</span>
+                        <span className="warn-text">
+                          {" "}
+                          · <IconAlertTriangle /> {st.pendiente.boletos} pendientes por validar
+                        </span>
                       )}
                     </span>
                   </div>
                   <div className="export-actions">
                     <a className="btn btn-dark btn-sm" href={`/api/admin/exportar?rifa=${r.id}&formato=csv`} aria-disabled={vacio}>
-                      ⬇ Excel
+                      <IconDownload /> Excel
                     </a>
                     <a className="btn btn-ghost btn-sm" href={`/api/admin/exportar?rifa=${r.id}&formato=txt`} aria-disabled={vacio}>
-                      ⬇ TXT
+                      <IconDownload /> TXT
                     </a>
                     <CopyNumbers rifaId={r.id} disabled={vacio} />
                   </div>
@@ -242,7 +253,7 @@ function FilaOrden({
     `Hola ${o.nombre.split(" ")[0]}, te escribimos de ${SITE.marca} sobre tu orden ${o.id}.`,
   )}`;
 
-  const accion = (estado: Estado, className: string, texto: string, confirmar?: string) => (
+  const accion = (estado: Estado, className: string, texto: React.ReactNode, confirmar?: string) => (
     <form action={actualizarEstado}>
       <input type="hidden" name="id" value={o.id} />
       <input type="hidden" name="estado" value={estado} />
@@ -304,13 +315,13 @@ function FilaOrden({
       </td>
       <td data-label="Acciones">
         <div className="actions">
-          {o.estado !== "aprobado" && accion("aprobado", "act-ok", "✓ Aprobar")}
+          {o.estado !== "aprobado" && accion("aprobado", "act-ok", <><IconCheck /> Aprobar</>)}
           {o.estado !== "rechazado" &&
-            accion("rechazado", "act-no", "✕ Rechazar", `¿Rechazar la orden ${o.id}? Sus números quedarán libres.`)}
-          {o.estado !== "pendiente" && accion("pendiente", "act-reset", "↺ Pendiente")}
+            accion("rechazado", "act-no", <><IconX /> Rechazar</>, `¿Rechazar la orden ${o.id}? Sus números quedarán libres.`)}
+          {o.estado !== "pendiente" && accion("pendiente", "act-reset", <><IconArrowBackUp /> Pendiente</>)}
           {waConfirmacion && (
             <a className="act-wa" href={waConfirmacion} target="_blank" rel="noopener" title="Enviar confirmación por WhatsApp">
-              📲 Confirmación
+              <IconBrandWhatsapp /> Confirmación
             </a>
           )}
         </div>

@@ -1,5 +1,13 @@
 import Link from "next/link";
-import { Icon } from "./Icon";
+import {
+  IconBrandInstagram,
+  IconBrandTiktok,
+  IconBrandWhatsapp,
+  IconMail,
+  IconMapPin,
+  IconPhone,
+  IconTrophy,
+} from "@tabler/icons-react";
 import { SITE, waLink } from "@/data/config";
 
 export function Footer() {
@@ -12,7 +20,9 @@ export function Footer() {
           <div className="footer-grid">
             <div>
               <Link href="/" className="logo" style={{ marginBottom: 14 }}>
-                <span className="logo-mark">🏆</span>
+                <span className="logo-mark">
+                  <IconTrophy />
+                </span>
                 <span>
                   RIFA <b>EL TRIUNFO</b>
                 </span>
@@ -25,26 +35,30 @@ export function Footer() {
             <div>
               <h5>Contacto</h5>
               <ul>
-                <li>📍 {SITE.ciudad}</li>
+                <li>
+                  <IconMapPin /> {SITE.ciudad}
+                </li>
                 <li>
                   <a href={waLink()} target="_blank" rel="noopener">
-                    📞 +{SITE.whatsapp}
+                    <IconPhone /> +{SITE.whatsapp}
                   </a>
                 </li>
-                <li>✉️ {SITE.email}</li>
+                <li>
+                  <IconMail /> {SITE.email}
+                </li>
               </ul>
             </div>
             <div>
               <h5>Síguenos</h5>
               <div className="socials">
                 <a href={SITE.instagram} aria-label="Instagram">
-                  <Icon name="ig" />
+                  <IconBrandInstagram />
                 </a>
                 <a href={SITE.tiktok} aria-label="TikTok">
-                  <Icon name="tt" />
+                  <IconBrandTiktok />
                 </a>
                 <a href={waLink()} target="_blank" rel="noopener" aria-label="WhatsApp">
-                  <Icon name="wa" />
+                  <IconBrandWhatsapp />
                 </a>
               </div>
             </div>
@@ -63,7 +77,7 @@ export function Footer() {
       </footer>
 
       <a className="wa-float" href={waLink("Hola, quiero información sobre las rifas 🏆")} target="_blank" rel="noopener">
-        <Icon name="wa" />
+        <IconBrandWhatsapp />
         <span>Chat</span>
       </a>
     </>

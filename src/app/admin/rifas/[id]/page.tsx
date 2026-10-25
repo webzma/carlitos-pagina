@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { IconExternalLink } from "@tabler/icons-react";
 import { notFound, redirect } from "next/navigation";
 import { esAdmin } from "@/lib/auth";
 import { obtenerRifa } from "@/lib/db";
@@ -19,7 +20,7 @@ export default async function EditarRifaPage({ params }: { params: Promise<{ id:
         <h1>EDITAR RIFA</h1>
         <p className="muted" style={{ marginBottom: 16 }}>
           <Link className="link" href={`/rifas/${rifa.id}`} target="_blank">
-            /rifas/{rifa.id} ↗
+            /rifas/{rifa.id} <IconExternalLink />
           </Link>
         </p>
         <FormRifa rifa={rifa} />

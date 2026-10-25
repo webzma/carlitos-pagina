@@ -1,5 +1,7 @@
 import Link from "next/link";
+import { IconCalendarEvent, IconTicket, IconTrophy } from "@tabler/icons-react";
 import { type Rifa, money, fmtDate } from "@/data/config";
+import { IconoPremio } from "./IconoPremio";
 
 export function RaffleCard({ rifa, vendidos }: { rifa: Rifa; vendidos: number }) {
   const activa = rifa.estado === "activa";
@@ -9,13 +11,15 @@ export function RaffleCard({ rifa, vendidos }: { rifa: Rifa; vendidos: number })
     <article className="card">
       <div className={`card-img ${rifa.estilo ?? ""}`}>
         <span className={`badge ${activa ? "live" : "done"}`}>{activa ? "En venta" : "Finalizada"}</span>
-        {rifa.icono}
+        <IconoPremio icono={rifa.icono} stroke={1.25} />
       </div>
       <div className="card-body">
         <h3>{rifa.titulo}</h3>
         <p style={{ color: "var(--muted)", fontSize: ".92rem" }}>{rifa.descripcion}</p>
         <div className="meta">
-          <span>📅 {fmtDate(rifa.fecha)}</span>
+          <span>
+            <IconCalendarEvent /> {fmtDate(rifa.fecha)}
+          </span>
           <span>
             Boleto: <b>{money(rifa.precio)}</b>
           </span>
@@ -30,14 +34,16 @@ export function RaffleCard({ rifa, vendidos }: { rifa: Rifa; vendidos: number })
               <span>{pct}%</span>
             </div>
             <Link href={`/rifas/${rifa.id}`} className="btn btn-primary btn-block">
-              🎟️ Boletos disponibles
+              <IconTicket /> Boletos disponibles
             </Link>
           </>
         ) : (
           <>
             {rifa.ganador && (
               <div className="meta">
-                <span>🏆 Ganador</span>
+                <span>
+                  <IconTrophy /> Ganador
+                </span>
                 <b>{rifa.ganador}</b>
               </div>
             )}

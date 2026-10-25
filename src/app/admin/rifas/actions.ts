@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { esAdmin } from "@/lib/auth";
 import { actualizarRifa, borrarRifa, crearRifa } from "@/lib/db";
 import type { Paquete, Premio, Rifa } from "@/data/config";
+import { esIcono, claveIcono, ICONO_DEFECTO } from "@/components/IconoPremio";
 
 export interface EstadoFormRifa {
   error: string;
@@ -22,14 +23,18 @@ const slug = (s: string) =>
     .replace(/^-+|-+$/g, "")
     .slice(0, 60);
 
-/** Una línea por premio: Lugar | Icono | Título | Detalle */
-function leerPremios(texto: string): Premio[] | string {
+/** Una línea por premio: Lugar | Icono | Título | Detalle (sin ícono usa el de la rifa) */
+function leerPremios(texto: string, iconoRifa: string): Premio[] | string {
   const premios: Premio[] = [];
   for (const [i, linea] of texto.split("\n").entries()) {
     if (!linea.trim()) continue;
     const [lugar, icono, titulo, detalle = ""] = linea.split("|").map((p) => p.trim());
-    if (!lugar || !icono || !titulo) return `Premio en la línea ${i + 1}: usa el formato Lugar | Icono | Título | Detalle`;
-    premios.push({ lugar, icono, titulo, detalle });
+    if (!lugar || !titulo) return `Premio en la línea ${i + 1}: usa el formato Lugar | Icono | Título | Detalle`;
+    const clave = icono ? claveIcono(icono.toLowerCase()) : iconoRifa;
+    if (icono && clave === ICONO_DEFECTO && icono.toLowerCase() !== ICONO_DEFECTO) {
+      return `Premio en la línea ${i + 1}: el ícono "${icono}" no existe (mira "Ver claves de íconos")`;
+    }
+    premios.push({ lugar, icono: clave, titulo, detalle });
   }
   return premios;
 }
@@ -65,6 +70,7 @@ export async function guardarRifa(_prev: EstadoFormRifa, fd: FormData): Promise<
   const fecha = campo("fecha");
   const estado = campo("estado") === "finalizada" ? "finalizada" : "activa";
   const estilo = campo("estilo");
+  const icono = esIcono(campo("icono")) ? campo("icono") : ICONO_DEFECTO;
 
   if (titulo.length < 3) return fallo("Escribe el título de la rifa");
   if (!id) return fallo("El identificador solo puede tener letras, números y guiones");
@@ -78,7 +84,7 @@ export async function guardarRifa(_prev: EstadoFormRifa, fd: FormData): Promise<
   if (!campo("loteria")) return fallo("Indica con qué lotería se juega");
   if (!ESTILOS.includes(estilo)) return fallo("Color de tarjeta inválido");
 
-  const premios = leerPremios(campo("premios", 5000));
+  const premios = leerPremios(campo("premios", 5000), icono);
   if (typeof premios === "string") return fallo(premios);
   const paquetes = leerPaquetes(campo("paquetes", 2000));
   if (typeof paquetes === "string") return fallo(paquetes);
@@ -86,7 +92,7 @@ export async function guardarRifa(_prev: EstadoFormRifa, fd: FormData): Promise<
   const rifa: Rifa = {
     id,
     titulo,
-    icono: campo("icono", 16) || "🎁",
+    icono,
     descripcion: campo("descripcion"),
     precio: Math.round(precio * 100) / 100,
     totalBoletos,

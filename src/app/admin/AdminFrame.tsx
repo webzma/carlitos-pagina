@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { IconTrophy } from "@tabler/icons-react";
 import { logout } from "./actions";
 
 export function AdminFrame({ logueado, children }: { logueado: boolean; children: React.ReactNode }) {
@@ -7,7 +8,9 @@ export function AdminFrame({ logueado, children }: { logueado: boolean; children
       <header className="admin-top">
         <div className="container">
           <Link href="/admin" className="logo">
-            <span className="logo-mark">🏆</span>
+            <span className="logo-mark">
+              <IconTrophy />
+            </span>
             <span>
               PANEL <b>EL TRIUNFO</b>
             </span>

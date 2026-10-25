@@ -1,6 +1,15 @@
 "use client";
 
 import { useCallback, useMemo, useRef, useState } from "react";
+import {
+  IconArrowRight,
+  IconBrandWhatsapp,
+  IconCircleCheck,
+  IconConfetti,
+  IconDice5,
+  IconPaperclip,
+  IconX,
+} from "@tabler/icons-react";
 import { CopyButton } from "@/components/CopyButton";
 import { toast } from "@/components/Toaster";
 import { CUENTAS, money, waLink } from "@/data/config";
@@ -13,8 +22,8 @@ import type { OrdenPublica } from "./tipos";
 
 const MAX_ARCHIVO = 4 * 1024 * 1024;
 const PAISES = [
-  ["58", "🇻🇪"], ["57", "🇨🇴"], ["51", "🇵🇪"], ["56", "🇨🇱"],
-  ["1", "🇺🇸"], ["34", "🇪🇸"], ["52", "🇲🇽"], ["593", "🇪🇨"],
+  ["58", "VE"], ["57", "CO"], ["51", "PE"], ["56", "CL"],
+  ["1", "US"], ["34", "ES"], ["52", "MX"], ["593", "EC"],
 ];
 
 export function Compra() {
@@ -46,7 +55,7 @@ export function Compra() {
     const base = reemplazar ? new Set<number>() : new Set(seleccion);
     const libres: number[] = [];
     for (let i = 0; i < rifa.totalBoletos; i++) if (!vendidos.has(i) && !base.has(i)) libres.push(i);
-    if (!libres.length) return toast("No quedan boletos disponibles 😢");
+    if (!libres.length) return toast("No quedan boletos disponibles");
     for (let k = 0; k < cantidad && libres.length; k++) {
       base.add(libres.splice(Math.floor(Math.random() * libres.length), 1)[0]);
     }
@@ -59,7 +68,7 @@ export function Compra() {
       return toast(`Ingresa un número entre ${num(0)} y ${rifa.totalBoletos - 1}`);
     }
     const n = +v;
-    if (vendidos.has(n)) return toast(`😕 El #${num(n)} ya fue vendido`);
+    if (vendidos.has(n)) return toast(`El #${num(n)} ya fue vendido`);
     setSeleccion((prev) => new Set(prev).add(n));
     const b = gridRef.current?.querySelector<HTMLElement>(`[data-n="${n}"]`);
     if (b) {
@@ -67,7 +76,7 @@ export function Compra() {
       b.classList.add("flash");
       setTimeout(() => b.classList.remove("flash"), 1700);
     }
-    toast(`✅ #${num(n)} disponible y agregado`);
+    toast(`#${num(n)} disponible y agregado`);
   }
 
   async function confirmar(e: React.FormEvent<HTMLFormElement>) {
@@ -101,7 +110,7 @@ export function Compra() {
         marcarVendidos(tomados);
         setSeleccion((prev) => new Set([...prev].filter((n) => !tomados.includes(n))));
         setCompraAbierta(false);
-        return toast(`😕 Ya vendieron: ${tomados.map(num).join(", ")}. Elige otros.`);
+        return toast(`Ya vendieron: ${tomados.map(num).join(", ")}. Elige otros.`);
       }
       if (!res.ok) return toast(data.error ?? "No se pudo registrar la compra");
 
@@ -139,7 +148,7 @@ export function Compra() {
             className="pack"
             onClick={() => {
               elegirAlAzar(p.cant, true);
-              toast(`🎲 ${p.cant} boletos elegidos a la suerte`);
+              toast(`${p.cant} boletos elegidos a la suerte`);
             }}
           >
             {p.tag && <span className="tag">{p.tag}</span>}
@@ -164,7 +173,7 @@ export function Compra() {
             Buscar
           </button>
           <button className="btn btn-dark" onClick={() => elegirAlAzar(1)}>
-            🎲 Elegir a la suerte
+            <IconDice5 /> Elegir a la suerte
           </button>
           <button className="btn btn-ghost" onClick={() => setSeleccion(new Set())}>
             Limpiar
@@ -199,13 +208,13 @@ export function Compra() {
           <div className="cart-chips">
             {ordenados.map((n) => (
               <span key={n} title="Quitar" onClick={() => alternar(n)}>
-                {num(n)} ✕
+                {num(n)} <IconX />
               </span>
             ))}
           </div>
         </div>
         <button className="btn btn-primary" disabled={seleccion.size === 0} onClick={() => setCompraAbierta(true)}>
-          Continuar →
+          Continuar <IconArrowRight />
         </button>
       </div>
 
@@ -227,9 +236,9 @@ export function Compra() {
             <label>Teléfono (WhatsApp) *</label>
             <div className="row-2">
               <select name="codigo">
-                {PAISES.map(([code, flag]) => (
+                {PAISES.map(([code, pais]) => (
                   <option key={code} value={code}>
-                    {flag} +{code}
+                    {pais} +{code}
                   </option>
                 ))}
               </select>
@@ -262,7 +271,17 @@ export function Compra() {
             <input name="referencia" inputMode="numeric" maxLength={40} placeholder="Últimos dígitos de la referencia" />
           </div>
           <label className="upload">
-            <span>{archivo ? `✅ ${archivo}` : "📎 Toca para subir la captura del pago"}</span>
+            <span>
+              {archivo ? (
+                <>
+                  <IconCircleCheck /> {archivo}
+                </>
+              ) : (
+                <>
+                  <IconPaperclip /> Toca para subir la captura del pago
+                </>
+              )}
+            </span>
             <input
               type="file"
               name="comprobante"
@@ -299,7 +318,9 @@ export function Compra() {
       <Modal abierto={ordenOk !== null} onCerrar={cerrarOk} className="success">
         {ordenOk && (
           <>
-            <div className="ico">🎉</div>
+            <div className="ico">
+              <IconConfetti stroke={1.5} />
+            </div>
             <h3>¡BOLETOS REGISTRADOS!</h3>
             <p className="muted">
               {ordenOk.nombre}, tus boletos quedaron apartados. Te confirmaremos por WhatsApp cuando validemos el pago.
@@ -315,7 +336,7 @@ export function Compra() {
                 `Hola! Compré boletos de ${rifa.titulo} 🏆\nOrden: ${ordenOk.id}\nNombre: ${ordenOk.nombre}\nNúmeros: ${ordenOk.numeros.map(num).join(", ")}\nTotal: ${money(ordenOk.total ?? 0)}`,
               )}
             >
-              Enviar comprobante por WhatsApp
+              <IconBrandWhatsapp /> Enviar comprobante por WhatsApp
             </a>
             <button className="btn btn-ghost btn-block" style={{ marginTop: 10 }} onClick={cerrarOk}>
               Cerrar

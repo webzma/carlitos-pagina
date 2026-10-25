@@ -1,5 +1,6 @@
 "use client";
 
+import { IconX } from "@tabler/icons-react";
 import { useEffect } from "react";
 
 export function Modal({
@@ -24,7 +25,7 @@ export function Modal({
     <div className={`modal${abierto ? " open" : ""}`} onClick={(e) => e.target === e.currentTarget && onCerrar()}>
       <div className={`modal-box ${className}`} role="dialog" aria-modal="true">
         <button type="button" className="modal-close" aria-label="Cerrar" onClick={onCerrar}>
-          ×
+          <IconX />
         </button>
         {children}
       </div>

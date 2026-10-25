@@ -3,13 +3,14 @@
 import { useActionState } from "react";
 import Link from "next/link";
 import type { Rifa } from "@/data/config";
+import { ICONOS, claveIcono } from "@/components/IconoPremio";
 import { guardarRifa, type EstadoFormRifa } from "./actions";
 
 // Venezuela usa UTC-4 todo el año
 const aHoraVE = (iso: string) => new Date(new Date(iso).getTime() - 4 * 3600_000).toISOString().slice(0, 16);
 
 const premiosATexto = (r?: Rifa) =>
-  (r?.premios ?? []).map((p) => [p.lugar, p.icono, p.titulo, p.detalle].join(" | ")).join("\n");
+  (r?.premios ?? []).map((p) => [p.lugar, claveIcono(p.icono), p.titulo, p.detalle].join(" | ")).join("\n");
 
 const paquetesATexto = (r?: Rifa) =>
   (r?.paquetes ?? []).map((p) => [p.cant, Math.round(p.desc * 100), p.tag].filter((x) => x !== undefined).join(" | ")).join("\n");
@@ -40,10 +41,6 @@ export function FormRifa({ rifa }: { rifa?: Rifa }) {
               <small className="muted">/rifas/identificador · no se puede cambiar después</small>
             </div>
           )}
-          <div className="field">
-            <label>Icono (emoji)</label>
-            <input name="icono" maxLength={16} defaultValue={v("icono", rifa?.icono ?? "🎁")} />
-          </div>
           <div className="field span-2">
             <label>Descripción corta *</label>
             <input
@@ -78,6 +75,23 @@ export function FormRifa({ rifa }: { rifa?: Rifa }) {
           <div className="field">
             <label>Lotería *</label>
             <input name="loteria" required maxLength={120} defaultValue={v("loteria", rifa?.loteria)} placeholder="Lotería del Táchira (Triple A)" />
+          </div>
+          <div className="field span-2">
+            <label>Ícono</label>
+            <div className="icon-picker">
+              {Object.entries(ICONOS).map(([clave, { nombre, Icono }]) => (
+                <label key={clave} title={nombre}>
+                  <input
+                    type="radio"
+                    name="icono"
+                    value={clave}
+                    defaultChecked={v("icono", claveIcono(rifa?.icono)) === clave}
+                  />
+                  <Icono stroke={1.5} />
+                  <span>{nombre}</span>
+                </label>
+              ))}
+            </div>
           </div>
           <div className="field">
             <label>Color de la tarjeta</label>
@@ -115,9 +129,21 @@ export function FormRifa({ rifa }: { rifa?: Rifa }) {
             name="premios"
             rows={4}
             defaultValue={v("premios", premiosATexto(rifa))}
-            placeholder={"1er Premio | 🏍️ | Moto Bera SBR 0 km | Con papeles y casco incluido\n2do Premio | 📱 | iPhone 16 128GB | Nuevo, sellado en caja"}
+            placeholder={"1er Premio | moto | Moto Bera SBR 0 km | Con papeles y casco incluido\n2do Premio | celular | iPhone 16 128GB | Nuevo, sellado en caja"}
           />
-          <small className="muted">Vacío = premio único con la descripción corta.</small>
+          <small className="muted">
+            Vacío = premio único con la descripción corta. Si el ícono queda vacío se usa el de la rifa.
+          </small>
+          <details className="icon-keys">
+            <summary>Ver claves de íconos</summary>
+            <div>
+              {Object.entries(ICONOS).map(([clave, { Icono }]) => (
+                <span key={clave}>
+                  <Icono stroke={1.5} /> {clave}
+                </span>
+              ))}
+            </div>
+          </details>
         </div>
       </fieldset>
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { IconDice5 } from "@tabler/icons-react";
 import { toast } from "@/components/Toaster";
 import { useRifa } from "./RifaContext";
 
@@ -19,7 +20,7 @@ export function Sorteador() {
       if (++t > 30) {
         clearInterval(iv);
         setGirando(false);
-        toast(`🎉 ¡Salió el ${ultimo.current}!`);
+        toast(`¡Salió el ${ultimo.current}!`);
       }
     }, 70);
   }
@@ -33,7 +34,7 @@ export function Sorteador() {
         <p className="section-sub">Simulador: prueba tu suerte antes del sorteo oficial</p>
         <div className="display">{valor}</div>
         <button className="btn btn-dark" onClick={iniciar} disabled={girando}>
-          🎲 Iniciar
+          <IconDice5 /> Iniciar
         </button>
       </div>
     </section>

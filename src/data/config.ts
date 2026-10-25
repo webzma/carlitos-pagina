@@ -62,7 +62,7 @@ export const RIFAS_INICIALES: Rifa[] = [
   {
     id: "gran-combo-7",
     titulo: "Gran Combo 7.0",
-    icono: "🏍️",
+    icono: "moto",
     descripcion: "Moto 0 km + iPhone 16 + $500 en efectivo",
     precio: 2,
     totalBoletos: 1000,
@@ -70,15 +70,15 @@ export const RIFAS_INICIALES: Rifa[] = [
     loteria: "Lotería del Táchira (Triple A)",
     estado: "activa",
     premios: [
-      { lugar: "1er Premio", icono: "🏍️", titulo: "Moto Bera SBR 0 km", detalle: "Con papeles y casco incluido" },
-      { lugar: "2do Premio", icono: "📱", titulo: "iPhone 16 128GB", detalle: "Nuevo, sellado en caja" },
-      { lugar: "3er Premio", icono: "💵", titulo: "$500 en efectivo", detalle: "Pago móvil, Zelle o Binance" },
+      { lugar: "1er Premio", icono: "moto", titulo: "Moto Bera SBR 0 km", detalle: "Con papeles y casco incluido" },
+      { lugar: "2do Premio", icono: "celular", titulo: "iPhone 16 128GB", detalle: "Nuevo, sellado en caja" },
+      { lugar: "3er Premio", icono: "efectivo", titulo: "$500 en efectivo", detalle: "Pago móvil, Zelle o Binance" },
     ],
   },
   {
     id: "dolares-express",
     titulo: "Dólares Express",
-    icono: "💰",
+    icono: "dinero",
     descripcion: "$1.000 directos a tu cuenta",
     precio: 1,
     totalBoletos: 1000,
@@ -90,7 +90,7 @@ export const RIFAS_INICIALES: Rifa[] = [
   {
     id: "gran-combo-6",
     titulo: "Gran Combo 6.0",
-    icono: "📺",
+    icono: "tv",
     descripcion: 'Smart TV 65" + PS5',
     precio: 2,
     totalBoletos: 1000,
@@ -103,7 +103,7 @@ export const RIFAS_INICIALES: Rifa[] = [
   {
     id: "gran-combo-5",
     titulo: "Gran Combo 5.0",
-    icono: "🚗",
+    icono: "carro",
     descripcion: "Chevrolet Aveo 2015",
     precio: 5,
     totalBoletos: 1000,
