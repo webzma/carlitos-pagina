@@ -23,7 +23,7 @@
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
-html { scroll-behavior: smooth; }
+html { scroll-behavior: smooth; scroll-padding-top: 80px; } /* deja ver el título bajo la cabecera fija */
 body {
   font-family: var(--font);
   background: var(--bg);
@@ -279,8 +279,9 @@ body:has(.cart) .wa-float { bottom: 110px; }
   background: var(--dark); color: #fff;
   padding: 12px 20px; border-radius: 12px; z-index: 200; transition: transform .3s;
   box-shadow: var(--shadow); font-size: .9rem; max-width: calc(100% - 32px);
+  visibility: hidden;
 }
-.toast.show { transform: translate(-50%, 0); }
+.toast.show { transform: translate(-50%, 0); visibility: visible; }
 
 /* =========================================================
    Raffle page
@@ -375,7 +376,7 @@ body:has(.cart) .wa-float { bottom: 110px; }
 
 .verify { max-width: 640px; margin-inline: auto; }
 .verify form { display: flex; gap: 10px; }
-.verify input { flex: 1; padding: 14px 18px; border-radius: 12px; background: var(--bg); border: 1px solid var(--line); }
+.verify input { flex: 1; min-width: 0; padding: 14px 18px; border-radius: 12px; background: var(--bg); border: 1px solid var(--line); }
 .verify input:focus { outline: none; border-color: var(--red); }
 .verify-result { margin-top: 18px; }
 .ticket {
@@ -400,7 +401,7 @@ body:has(.cart) .wa-float { bottom: 110px; }
 .modal { position: fixed; inset: 0; z-index: 100; display: none; place-items: center; padding: 16px; background: rgba(17, 17, 17, .55); backdrop-filter: blur(4px); }
 .modal.open { display: grid; }
 .modal-box {
-  width: min(560px, 100%); max-height: 92vh; overflow-y: auto;
+  width: min(560px, 100%); max-height: 92vh; max-height: 92dvh; overflow-y: auto; overscroll-behavior: contain;
   background: var(--bg); border-radius: 22px; padding: 28px;
   position: relative; animation: pop .25s ease;
 }
@@ -412,7 +413,7 @@ body:has(.cart) .wa-float { bottom: 110px; }
 .field { display: grid; gap: 6px; margin-bottom: 12px; }
 .field label { font-size: .85rem; color: var(--muted); }
 .field input, .field select, .field textarea {
-  padding: 12px 14px; border-radius: 10px; background: var(--bg); border: 1px solid #d6d6dc;
+  width: 100%; min-width: 0; padding: 12px 14px; border-radius: 10px; background: var(--bg); border: 1px solid #d6d6dc;
 }
 .field input:focus, .field select:focus, .field textarea:focus { outline: none; border-color: var(--red); }
 .row-2 { display: grid; grid-template-columns: 110px 1fr; gap: 10px; }
@@ -501,15 +502,85 @@ body:has(.cart) .wa-float { bottom: 110px; }
 .orders .actions a { padding: 6px 10px; border-radius: 8px; font-size: .75rem; font-weight: 700; }
 
 .rifa-form { display: grid; gap: 18px; }
-.rifa-form fieldset { border: 0; background: var(--bg); border-radius: 16px; box-shadow: var(--shadow); padding: 18px 20px 8px; }
+.rifa-form fieldset { min-width: 0; border: 0; background: var(--bg); border-radius: 16px; box-shadow: var(--shadow); padding: 18px 20px 8px; }
 .rifa-form legend { float: left; width: 100%; font-weight: 700; font-size: 1.05rem; margin-bottom: 12px; }
 .rifa-form textarea { font-family: ui-monospace, monospace; font-size: .85rem; resize: vertical; }
 .rifa-form .muted { color: var(--muted); font-size: .78rem; }
-.grid-form { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0 16px; clear: both; }
+.rifa-form fieldset > :not(legend) { clear: both; }
+.grid-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 16px; }
 .grid-form .span-2 { grid-column: span 2; }
-@media (max-width: 700px) { .grid-form { grid-template-columns: 1fr; } .grid-form .span-2 { grid-column: auto; } }
+@media (max-width: 700px) { .grid-form { grid-template-columns: minmax(0, 1fr); } .grid-form .span-2 { grid-column: auto; } }
 .form-actions { display: flex; justify-content: flex-end; gap: 10px; }
 .flash-msg { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
 .btn-wa { background: #25d366; color: #fff; }
 .btn-wa:hover { background: #1ebe5a; }
 .orders .actions .act-wa { background: #e3f9eb; color: #128c4a; }
+
+/* =========================================================
+   Teléfonos
+   ========================================================= */
+@media (max-width: 640px) {
+  /* 16px evita que iOS haga zoom al enfocar un campo */
+  input, select, textarea, .rifa-form textarea { font-size: 16px; }
+  .section { padding: 52px 0; }
+  .section-sub { margin-bottom: 28px; }
+  .hero { padding: 48px 0 80px; }
+  .raffle-hero { padding: 28px 0; }
+  .prize-visual { font-size: 6rem; }
+  .panel { padding: 16px; }
+  /* Buscador + Buscar arriba; Elegir a la suerte + Limpiar abajo */
+  .picker-tools { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
+  .picker-tools input { min-width: 0; }
+  .picker-tools .btn { padding: 12px 14px; font-size: .74rem; letter-spacing: 0; white-space: nowrap; }
+  .legend { gap: 8px 14px; }
+  .legend label { margin-left: 0; flex-basis: 100%; }
+  .grid-numbers { grid-template-columns: repeat(auto-fill, minmax(52px, 1fr)); max-height: 360px; }
+  .num { padding: 11px 0; }
+  .cart { padding: 12px 14px; gap: 10px; border-radius: 16px; }
+  .cart > div { min-width: 0 !important; }
+  .cart .btn { width: 100%; }
+  /* Una sola fila de números que se desliza de lado, para que el carrito ocupe poco */
+  .cart-chips { flex-wrap: nowrap; overflow-x: auto; max-height: none; scrollbar-width: none; }
+  .cart-chips span { flex: none; }
+  body:has(.cart) .wa-float { bottom: 150px; }
+  .modal { padding: 10px; }
+  .modal-box { padding: 22px 18px; border-radius: 18px; }
+  .modal-box h3 { font-size: 1.7rem; padding-right: 28px; }
+  .summary-box { flex-wrap: wrap; }
+  .verify input { padding: 12px 14px; }
+  .verify form .btn { padding: 12px 18px; }
+  .account { padding: 18px; }
+  .footer-bottom nav { flex-wrap: wrap; }
+  .login-box { padding: 24px 18px; margin-top: 8vh; }
+
+  /* Admin */
+  .admin-top .container { height: auto; padding: 10px 0; flex-wrap: wrap; }
+  .admin-top .logo { font-size: 1.3rem; }
+  .admin-top .logo-mark { width: 34px; height: 34px; font-size: 1.05rem; }
+  .admin-nav { width: 100%; }
+  .admin-nav form { margin-left: auto; }
+  .admin-main { padding: 22px 0 48px; }
+  .admin-main h1 { font-size: 2rem; }
+  .kpis { gap: 10px; }
+  .kpi { padding: 14px; }
+  .kpi strong { font-size: 1.7rem; }
+  .filters .btn { flex: 1; }
+  .export-actions { width: 100%; }
+  .export-actions > * { flex: 1; }
+  .flash-msg .btn { width: 100%; }
+  .form-actions .btn { flex: 1; }
+
+  /* Las tablas del admin pasan a tarjetas: cada celda muestra su título */
+  .table-wrap { background: none; box-shadow: none; overflow: visible; }
+  .orders, .orders tbody, .orders tr, .orders td { display: block; min-width: 0; }
+  .orders thead { display: none; }
+  .orders tr { background: var(--bg); border-radius: 16px; box-shadow: var(--shadow); padding: 6px 16px; margin-bottom: 12px; }
+  .orders td { padding: 10px 0; }
+  .orders tr td:last-child { border-bottom: 0; }
+  .orders td[data-label]::before {
+    content: attr(data-label); display: block; margin-bottom: 2px;
+    font-size: .68rem; text-transform: uppercase; letter-spacing: 1px; color: var(--muted);
+  }
+  .orders .actions button, .orders .actions a { padding: 10px 12px; font-size: .8rem; }
+  .table-wrap .empty { background: var(--bg); border-radius: 16px; box-shadow: var(--shadow); }
+}

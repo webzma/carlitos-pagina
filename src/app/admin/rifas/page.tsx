@@ -53,7 +53,7 @@ export default async function RifasAdminPage({ searchParams }: { searchParams: S
                   const ordenes = st ? ESTADOS.reduce((n, e) => n + st[e].ordenes, 0) : 0;
                   return (
                     <tr key={r.id}>
-                      <td className="who">
+                      <td data-label="Rifa" className="who">
                         <b>
                           {r.icono} {r.titulo}
                         </b>
@@ -62,24 +62,24 @@ export default async function RifasAdminPage({ searchParams }: { searchParams: S
                           /rifas/{r.id} ↗
                         </Link>
                       </td>
-                      <td>
+                      <td data-label="Estado">
                         <span className={`status ${r.estado === "activa" ? "aprobado" : "rechazado"}`}>
                           {r.estado === "activa" ? "Activa" : "Finalizada"}
                         </span>
                         {r.ganador && <span className="muted">🏆 {r.ganador}</span>}
                       </td>
-                      <td>
+                      <td data-label="Sorteo">
                         {fmtDate(r.fecha)}
                         <span className="muted">{r.loteria}</span>
                       </td>
-                      <td>
+                      <td data-label="Precio">
                         <b>{money(r.precio)}</b>
                       </td>
-                      <td>
+                      <td data-label="Vendidos">
                         {vendidos[r.id] ?? 0} / {r.totalBoletos}
                         <span className="muted">{ordenes} orden(es)</span>
                       </td>
-                      <td>
+                      <td data-label="Acciones">
                         <div className="actions">
                           <Link className="act-reset" href={`/admin/rifas/${r.id}`}>
                             ✎ Editar

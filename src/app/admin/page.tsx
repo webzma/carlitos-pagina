@@ -259,11 +259,11 @@ function FilaOrden({
 
   return (
     <tr>
-      <td>
+      <td data-label="Orden">
         <b>{o.id}</b>
         <span className="muted">{fechaVE(o.creado)}</span>
       </td>
-      <td className="who">
+      <td data-label="Comprador" className="who">
         <b>{o.nombre}</b>
         {o.cedula && <small>C.I. {o.cedula}</small>}
         <a className="link" href={wa} target="_blank" rel="noopener">
@@ -271,7 +271,7 @@ function FilaOrden({
         </a>
         {o.email && <small>{o.email}</small>}
       </td>
-      <td>
+      <td data-label="Rifa / boletos">
         <span className="muted">{rifa?.titulo ?? o.rifa_id}</span>
         <div className="nums" style={{ marginTop: 4 }}>
           {o.numeros.map((n) => (
@@ -279,10 +279,10 @@ function FilaOrden({
           ))}
         </div>
       </td>
-      <td>
+      <td data-label="Total">
         <b>{money(o.total)}</b>
       </td>
-      <td>
+      <td data-label="Pago">
         {o.referencia ? (
           <div>
             Ref: <b>{o.referencia}</b>
@@ -299,10 +299,10 @@ function FilaOrden({
           <span className="muted">Sin captura</span>
         )}
       </td>
-      <td>
+      <td data-label="Estado">
         <span className={`status ${o.estado}`}>{ESTADO_TEXTO[o.estado]}</span>
       </td>
-      <td>
+      <td data-label="Acciones">
         <div className="actions">
           {o.estado !== "aprobado" && accion("aprobado", "act-ok", "✓ Aprobar")}
           {o.estado !== "rechazado" &&
