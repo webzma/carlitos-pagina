@@ -31,6 +31,8 @@ export async function actualizarEstado(formData: FormData) {
     const r = await cambiarEstado(id, estado);
     destino.searchParams.set("msg", "error" in r ? r.error : `Orden ${id} marcada como ${estado}`);
     destino.searchParams.set("tipo", "error" in r ? "err" : "ok");
+    // Ofrece enviar la confirmación por WhatsApp al comprador
+    if (!("error" in r) && estado === "aprobado") destino.searchParams.set("wa", id);
   }
   redirect(destino.pathname + destino.search);
 }

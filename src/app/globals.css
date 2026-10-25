@@ -509,3 +509,7 @@ body:has(.cart) .wa-float { bottom: 110px; }
 .grid-form .span-2 { grid-column: span 2; }
 @media (max-width: 700px) { .grid-form { grid-template-columns: 1fr; } .grid-form .span-2 { grid-column: auto; } }
 .form-actions { display: flex; justify-content: flex-end; gap: 10px; }
+.flash-msg { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.btn-wa { background: #25d366; color: #fff; }
+.btn-wa:hover { background: #1ebe5a; }
+.orders .actions .act-wa { background: #e3f9eb; color: #128c4a; }

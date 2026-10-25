@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { headers } from "next/headers";
 import { esAdmin } from "@/lib/auth";
 import {
   listarOrdenes,
   listarRifas,
+  obtenerOrden,
   resumen,
   resumenPorRifa,
   resumenVacio,
@@ -11,7 +13,7 @@ import {
   type Estado,
   type Orden,
 } from "@/lib/db";
-import { SITE, money, digitosDe, pad, type Rifa } from "@/data/config";
+import { SITE, money, digitosDe, pad, fmtDate, type Rifa } from "@/data/config";
 import { actualizarEstado, login } from "./actions";
 import { ConfirmSubmit, CopyNumbers } from "./ClientButtons";
 import { AdminFrame } from "./AdminFrame";
@@ -41,6 +43,12 @@ export default async function AdminPage({ searchParams }: { searchParams: Search
     listarRifas(),
   ]);
 
+  // Orden recién aprobada: puede no estar en la lista filtrada
+  const aprobada = param("wa") ? await obtenerOrden(param("wa")) : null;
+  const h = await headers();
+  const sitio = `${h.get("x-forwarded-proto") ?? "https"}://${h.get("host")}`;
+  const waConfirmacion = (o: Orden) => linkConfirmacion(o, rifas.find((r) => r.id === o.rifa_id), sitio);
+
   // URL actual sin el mensaje, para volver tras una acción
   const base = new URLSearchParams();
   if (rifa) base.set("rifa", rifa);
@@ -60,7 +68,16 @@ export default async function AdminPage({ searchParams }: { searchParams: Search
       <main className="container admin-main">
         <h1>ÓRDENES Y PAGOS</h1>
 
-        {msg && <div className={`flash-msg ${tipo}`}>{msg}</div>}
+        {msg && (
+          <div className={`flash-msg ${tipo}`}>
+            {msg}
+            {aprobada?.estado === "aprobado" && (
+              <a className="btn btn-sm btn-wa" href={waConfirmacion(aprobada)} target="_blank" rel="noopener">
+                📲 Enviar confirmación por WhatsApp a {aprobada.nombre.split(" ")[0]}
+              </a>
+            )}
+          </div>
+        )}
 
         <div className="kpis">
           <div className="kpi warn">
@@ -170,7 +187,13 @@ export default async function AdminPage({ searchParams }: { searchParams: Search
               </thead>
               <tbody>
                 {ordenes.map((o) => (
-                  <FilaOrden key={o.id} orden={o} rifa={rifas.find((r) => r.id === o.rifa_id)} volver={volver} />
+                  <FilaOrden
+                    key={o.id}
+                    orden={o}
+                    rifa={rifas.find((r) => r.id === o.rifa_id)}
+                    volver={volver}
+                    waConfirmacion={o.estado === "aprobado" ? waConfirmacion(o) : undefined}
+                  />
                 ))}
               </tbody>
             </table>
@@ -184,7 +207,36 @@ export default async function AdminPage({ searchParams }: { searchParams: Search
   );
 }
 
-function FilaOrden({ orden: o, rifa, volver }: { orden: Orden; rifa: Rifa | undefined; volver: string }) {
+/** Link de WhatsApp con la confirmación del pago ya escrita, para que el admin solo toque "Enviar". */
+function linkConfirmacion(o: Orden, rifa: Rifa | undefined, sitio: string) {
+  const digitos = rifa ? digitosDe(rifa) : 3;
+  const lineas = [
+    `¡Hola ${o.nombre.split(" ")[0]}! 👋`,
+    `Tu pago de la orden *${o.id}* fue *APROBADO* ✅`,
+    "",
+    `🎟️ Rifa: ${rifa?.titulo ?? o.rifa_id}`,
+    `🔢 Tus números: ${o.numeros.map((n) => pad(n, digitos)).join(", ")}`,
+    `💵 Total: ${money(o.total)}`,
+    ...(rifa ? [`📅 Sorteo: ${fmtDate(rifa.fecha)} con la ${rifa.loteria}`] : []),
+    "",
+    `Puedes verificar tus boletos aquí: ${sitio}/rifas/${o.rifa_id}#verificador`,
+    "",
+    `¡Mucha suerte! 🍀 — ${SITE.marca}`,
+  ];
+  return `https://wa.me/${o.telefono}?text=${encodeURIComponent(lineas.join("\n"))}`;
+}
+
+function FilaOrden({
+  orden: o,
+  rifa,
+  volver,
+  waConfirmacion,
+}: {
+  orden: Orden;
+  rifa: Rifa | undefined;
+  volver: string;
+  waConfirmacion?: string;
+}) {
   const digitos = rifa ? digitosDe(rifa) : 3;
   const wa = `https://wa.me/${o.telefono}?text=${encodeURIComponent(
     `Hola ${o.nombre.split(" ")[0]}, te escribimos de ${SITE.marca} sobre tu orden ${o.id}.`,
@@ -256,6 +308,11 @@ function FilaOrden({ orden: o, rifa, volver }: { orden: Orden; rifa: Rifa | unde
           {o.estado !== "rechazado" &&
             accion("rechazado", "act-no", "✕ Rechazar", `¿Rechazar la orden ${o.id}? Sus números quedarán libres.`)}
           {o.estado !== "pendiente" && accion("pendiente", "act-reset", "↺ Pendiente")}
+          {waConfirmacion && (
+            <a className="act-wa" href={waConfirmacion} target="_blank" rel="noopener" title="Enviar confirmación por WhatsApp">
+              📲 Confirmación
+            </a>
+          )}
         </div>
       </td>
     </tr>
