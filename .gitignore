@@ -1,6 +1,9 @@
 node_modules/
-dist/
-.astro/
+.next/
+out/
 data/
 .env
+.env*.local
 .vercel/
+next-env.d.ts
+*.tsbuildinfo

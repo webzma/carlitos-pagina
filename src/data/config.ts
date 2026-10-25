@@ -64,7 +64,7 @@ export const RIFAS: Rifa[] = [
     descripcion: "Moto 0 km + iPhone 16 + $500 en efectivo",
     precio: 2,
     totalBoletos: 1000,
-    fecha: "2026-10-31T21:00:00",
+    fecha: "2026-10-31T21:00:00-04:00",
     loteria: "Lotería del Táchira (Triple A)",
     estado: "activa",
     premios: [
@@ -80,7 +80,7 @@ export const RIFAS: Rifa[] = [
     descripcion: "$1.000 directos a tu cuenta",
     precio: 1,
     totalBoletos: 1000,
-    fecha: "2026-11-08T21:00:00",
+    fecha: "2026-11-08T21:00:00-04:00",
     loteria: "Lotería de Oriente",
     estado: "activa",
     estilo: "alt",
@@ -92,7 +92,7 @@ export const RIFAS: Rifa[] = [
     descripcion: 'Smart TV 65" + PS5',
     precio: 2,
     totalBoletos: 1000,
-    fecha: "2026-10-10T21:00:00",
+    fecha: "2026-10-10T21:00:00-04:00",
     loteria: "Lotería del Táchira",
     estado: "finalizada",
     ganador: "#457 — María G.",
@@ -105,7 +105,7 @@ export const RIFAS: Rifa[] = [
     descripcion: "Chevrolet Aveo 2015",
     precio: 5,
     totalBoletos: 1000,
-    fecha: "2026-09-20T21:00:00",
+    fecha: "2026-09-20T21:00:00-04:00",
     loteria: "Lotería del Zulia",
     estado: "finalizada",
     ganador: "#082 — José R.",
@@ -138,7 +138,12 @@ export const money = (n: number) =>
   `${SITE.moneda}${Number(n).toLocaleString("es", { maximumFractionDigits: 2 })}`;
 
 export const fmtDate = (iso: string) =>
-  new Date(iso).toLocaleDateString("es", { day: "2-digit", month: "short", year: "numeric" }).toUpperCase();
+  new Date(iso)
+    .toLocaleDateString("es", { day: "2-digit", month: "short", year: "numeric", timeZone: "America/Caracas" })
+    .toUpperCase();
+
+export const pad = (n: number, len = 3) => String(n).padStart(len, "0");
+export const digitosDe = (r: Pick<Rifa, "totalBoletos">) => String(r.totalBoletos - 1).length;
 
 export const waLink = (msg = "") =>
   `https://wa.me/${SITE.whatsapp}${msg ? `?text=${encodeURIComponent(msg)}` : ""}`;

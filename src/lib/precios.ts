@@ -1,4 +1,4 @@
-import type { Paquete } from "../data/config";
+import type { Paquete } from "@/data/config";
 
 /** Total a pagar aplicando el mayor descuento de paquete que alcance la cantidad. */
 export function calcularTotal(precio: number, cantidad: number, paquetes: Paquete[]) {

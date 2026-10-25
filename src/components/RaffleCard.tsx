@@ -1,0 +1,50 @@
+import Link from "next/link";
+import { type Rifa, money, fmtDate } from "@/data/config";
+
+export function RaffleCard({ rifa, vendidos }: { rifa: Rifa; vendidos: number }) {
+  const activa = rifa.estado === "activa";
+  const pct = Math.round((vendidos / rifa.totalBoletos) * 100);
+
+  return (
+    <article className="card">
+      <div className={`card-img ${rifa.estilo ?? ""}`}>
+        <span className={`badge ${activa ? "live" : "done"}`}>{activa ? "En venta" : "Finalizada"}</span>
+        {rifa.icono}
+      </div>
+      <div className="card-body">
+        <h3>{rifa.titulo}</h3>
+        <p style={{ color: "var(--muted)", fontSize: ".92rem" }}>{rifa.descripcion}</p>
+        <div className="meta">
+          <span>📅 {fmtDate(rifa.fecha)}</span>
+          <span>
+            Boleto: <b>{money(rifa.precio)}</b>
+          </span>
+        </div>
+        {activa ? (
+          <>
+            <div className="progress">
+              <div style={{ width: `${pct}%` }} />
+            </div>
+            <div className="progress-label">
+              <span>Vendidos</span>
+              <span>{pct}%</span>
+            </div>
+            <Link href={`/rifas/${rifa.id}`} className="btn btn-primary btn-block">
+              🎟️ Boletos disponibles
+            </Link>
+          </>
+        ) : (
+          <>
+            <div className="meta">
+              <span>🏆 Ganador</span>
+              <b>{rifa.ganador}</b>
+            </div>
+            <Link href={`/rifas/${rifa.id}`} className="btn btn-ghost btn-block">
+              Ver evento
+            </Link>
+          </>
+        )}
+      </div>
+    </article>
+  );
+}

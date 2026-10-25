@@ -1,9 +1,10 @@
 // Base de datos: Turso (libSQL) en producción, archivo SQLite local en desarrollo.
 // Solo se importa desde código de servidor.
 
+import "server-only";
 import { createClient, type InStatement, type Row } from "@libsql/client";
 import { mkdirSync } from "node:fs";
-import { TURSO_DATABASE_URL, TURSO_AUTH_TOKEN } from "astro:env/server";
+import { env } from "./env";
 
 export type Estado = "pendiente" | "aprobado" | "rechazado";
 export const ESTADOS: Estado[] = ["pendiente", "aprobado", "rechazado"];
@@ -28,9 +29,15 @@ export interface Comprobante {
   datos: Uint8Array<ArrayBuffer>;
 }
 
-if (TURSO_DATABASE_URL.startsWith("file:")) mkdirSync("./data", { recursive: true });
-
-const client = createClient({ url: TURSO_DATABASE_URL, authToken: TURSO_AUTH_TOKEN });
+// El cliente se crea al primer uso (no al compilar) para leer las variables de entorno en tiempo de ejecución
+let client: ReturnType<typeof createClient> | undefined;
+function cliente() {
+  if (!client) {
+    if (env.TURSO_DATABASE_URL.startsWith("file:")) mkdirSync("./data", { recursive: true });
+    client = createClient({ url: env.TURSO_DATABASE_URL, authToken: env.TURSO_AUTH_TOKEN });
+  }
+  return client;
+}
 
 const SCHEMA = [
   `CREATE TABLE IF NOT EXISTS ordenes (
@@ -66,12 +73,12 @@ const SCHEMA = [
 // Crea las tablas la primera vez que se usa la base en cada instancia
 let listo: Promise<unknown> | undefined;
 async function db() {
-  listo ??= client.batch(SCHEMA, "write").catch((e) => {
+  listo ??= cliente().batch(SCHEMA, "write").catch((e) => {
     listo = undefined;
     throw e;
   });
   await listo;
-  return client;
+  return cliente();
 }
 
 const toOrden = (r: Row): Orden => ({
