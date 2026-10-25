@@ -33,7 +33,7 @@ export const ICONOS = {
   viaje: { nombre: "Viaje", Icono: IconPlane },
   nevera: { nombre: "Nevera", Icono: IconFridge },
   lavadora: { nombre: "Lavadora", Icono: IconWashMachine },
-  aire: { nombre: "Aire acondicionado", Icono: IconAirConditioning },
+  aire: { nombre: "Aire acond.", Icono: IconAirConditioning },
   microondas: { nombre: "Microondas", Icono: IconMicrowave },
   cama: { nombre: "Cama", Icono: IconBed },
   mueble: { nombre: "Mueble", Icono: IconArmchair },

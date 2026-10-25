@@ -10,7 +10,9 @@ import { guardarRifa, type EstadoFormRifa } from "./actions";
 const aHoraVE = (iso: string) => new Date(new Date(iso).getTime() - 4 * 3600_000).toISOString().slice(0, 16);
 
 const premiosATexto = (r?: Rifa) =>
-  (r?.premios ?? []).map((p) => [p.lugar, claveIcono(p.icono), p.titulo, p.detalle].join(" | ")).join("\n");
+  (r?.premios ?? [])
+    .map((p) => [p.lugar, claveIcono(p.icono), p.titulo, p.detalle].filter((x, i) => i < 3 || x).join(" | "))
+    .join("\n");
 
 const paquetesATexto = (r?: Rifa) =>
   (r?.paquetes ?? []).map((p) => [p.cant, Math.round(p.desc * 100), p.tag].filter((x) => x !== undefined).join(" | ")).join("\n");
