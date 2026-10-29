@@ -232,6 +232,11 @@ export async function vendidos(rifaId: string): Promise<number[]> {
   return rs.rows.map((r) => Number(r.numero));
 }
 
+export async function contarVendidos(rifaId: string): Promise<number> {
+  const rs = await (await db()).execute({ sql: "SELECT COUNT(*) n FROM boletos WHERE rifa_id = ?", args: [rifaId] });
+  return Number(rs.rows[0].n);
+}
+
 export async function conteoVendidos(): Promise<Record<string, number>> {
   const rs = await (await db()).execute("SELECT rifa_id, COUNT(*) n FROM boletos GROUP BY rifa_id");
   return Object.fromEntries(rs.rows.map((r) => [String(r.rifa_id), Number(r.n)]));
@@ -287,6 +292,33 @@ export async function crearOrden(data: NuevaOrden): Promise<{ orden: Orden } | {
     }
   }
   throw new Error("No se pudo generar un id de orden único");
+}
+
+/**
+ * Crea la orden con números libres elegidos al azar (el comprador no los elige ni los ve).
+ * Si otro comprador toma alguno en el mismo instante, vuelve a sortear.
+ */
+export async function crearOrdenAlAzar(
+  data: Omit<NuevaOrden, "numeros">,
+  cantidad: number,
+  totalBoletos: number,
+): Promise<{ orden: Orden } | { disponibles: number }> {
+  for (let intento = 0; intento < 5; intento++) {
+    const ocupados = new Set(await vendidos(data.rifa_id));
+    const libres: number[] = [];
+    for (let n = 0; n < totalBoletos; n++) if (!ocupados.has(n)) libres.push(n);
+    if (libres.length < cantidad) return { disponibles: libres.length };
+
+    // Fisher-Yates parcial: los primeros `cantidad` quedan al azar
+    for (let i = 0; i < cantidad; i++) {
+      const j = i + Math.floor(Math.random() * (libres.length - i));
+      [libres[i], libres[j]] = [libres[j], libres[i]];
+    }
+    const numeros = libres.slice(0, cantidad).sort((a, b) => a - b);
+    const r = await crearOrden({ ...data, numeros });
+    if ("orden" in r) return r;
+  }
+  throw new Error("No se pudieron asignar números libres");
 }
 
 export async function obtenerOrden(id: string): Promise<Orden | null> {
@@ -359,7 +391,10 @@ export async function listarOrdenes(f: FiltroOrdenes = {}): Promise<Orden[]> {
   return rs.rows.map(toOrden);
 }
 
-/** Búsqueda pública del verificador: por teléfono o número de boleto. */
+/**
+ * Búsqueda pública del verificador: por teléfono o número de boleto.
+ * Por número solo encuentra órdenes aprobadas (antes de aprobar, los números no se revelan).
+ */
 export async function buscarParaVerificador(rifaId: string, q: string): Promise<Orden[]> {
   const digits = q.replace(/\D/g, "");
   if (!digits) return [];
@@ -367,7 +402,7 @@ export async function buscarParaVerificador(rifaId: string, q: string): Promise<
     sql: `SELECT * FROM ordenes
           WHERE rifa_id = ? AND (
             (length(?) >= 7 AND telefono LIKE '%' || ?)
-            OR EXISTS (SELECT 1 FROM json_each(ordenes.numeros) WHERE value = ?)
+            OR (estado = 'aprobado' AND EXISTS (SELECT 1 FROM json_each(ordenes.numeros) WHERE value = ?))
           )
           ORDER BY creado DESC LIMIT 20`,
     args: [rifaId, digits, digits.replace(/^0+/, ""), Number(digits)],

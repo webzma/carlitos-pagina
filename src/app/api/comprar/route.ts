@@ -1,5 +1,5 @@
 import { paquetesDe } from "@/data/config";
-import { crearOrden, obtenerRifa } from "@/lib/db";
+import { crearOrdenAlAzar, obtenerRifa } from "@/lib/db";
 import { calcularTotal } from "@/lib/precios";
 
 const MAX_BOLETOS = 200;
@@ -22,11 +22,10 @@ export async function POST(request: Request) {
   if (!rifa || rifa.estado !== "activa") return json({ error: "Esta rifa no está disponible" }, 400);
   if (new Date(rifa.fecha).getTime() < Date.now()) return json({ error: "La venta de esta rifa ya cerró" }, 400);
 
-  const numeros = [...new Set(texto(fd, "numeros", 5000).split(",").map(Number))]
-    .filter((n) => Number.isInteger(n) && n >= 0 && n < rifa.totalBoletos)
-    .sort((a, b) => a - b);
-  if (!numeros.length) return json({ error: "Selecciona al menos un boleto" }, 400);
-  if (numeros.length > MAX_BOLETOS) return json({ error: `Máximo ${MAX_BOLETOS} boletos por compra` }, 400);
+  // El comprador solo indica cuántos boletos quiere; los números se asignan al azar
+  const cantidad = Number(texto(fd, "cantidad", 6));
+  if (!Number.isInteger(cantidad) || cantidad < 1) return json({ error: "Elige cuántos boletos quieres" }, 400);
+  if (cantidad > MAX_BOLETOS) return json({ error: `Máximo ${MAX_BOLETOS} boletos por compra` }, 400);
 
   const nombre = texto(fd, "nombre");
   const codigo = texto(fd, "codigo", 4).replace(/\D/g, "");
@@ -46,22 +45,24 @@ export async function POST(request: Request) {
     if (archivo.size > MAX_ARCHIVO) return json({ error: "La imagen no puede pesar más de 4 MB" }, 400);
   }
 
-  const resultado = await crearOrden({
+  const resultado = await crearOrdenAlAzar({
     rifa_id: rifa.id,
     nombre,
     cedula: texto(fd, "cedula", 20),
     telefono: `${codigo}${local}`,
     email: texto(fd, "email"),
     referencia,
-    numeros,
-    total: calcularTotal(rifa.precio, numeros.length, paquetesDe(rifa)),
+    total: calcularTotal(rifa.precio, cantidad, paquetesDe(rifa)),
     comprobante: tieneArchivo ? { tipo: archivo.type, datos: new Uint8Array(await archivo.arrayBuffer()) } : null,
-  });
+  }, cantidad, rifa.totalBoletos);
 
-  if ("conflicto" in resultado) {
-    return json({ error: "Algunos números ya fueron tomados", conflicto: resultado.conflicto }, 409);
+  if ("disponibles" in resultado) {
+    const { disponibles } = resultado;
+    const error = disponibles ? `Solo quedan ${disponibles} boletos disponibles` : "Los boletos se agotaron";
+    return json({ error, disponibles }, 409);
   }
 
+  // Los números no se envían al comprador hasta que se apruebe el pago
   const { orden } = resultado;
-  return json({ orden: { id: orden.id, nombre: orden.nombre, numeros: orden.numeros, total: orden.total, estado: orden.estado } });
+  return json({ orden: { id: orden.id, nombre: orden.nombre, cantidad, total: orden.total, estado: orden.estado } });
 }

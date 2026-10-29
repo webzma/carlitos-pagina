@@ -6,7 +6,7 @@ import { Accounts } from "@/components/Accounts";
 import { IconTrophy } from "@tabler/icons-react";
 import { IconoPremio } from "@/components/IconoPremio";
 import { premiosDe, paquetesDe, money, fmtDate } from "@/data/config";
-import { obtenerRifa, vendidos } from "@/lib/db";
+import { contarVendidos, obtenerRifa } from "@/lib/db";
 import { RifaProvider } from "./RifaContext";
 import { Disponibles, Progreso } from "./Disponibilidad";
 import { Countdown } from "./Countdown";
@@ -45,7 +45,7 @@ export default async function RifaPage({ params }: Props) {
 
   const activa = rifa.estado === "activa";
   const premios = premiosDe(rifa);
-  const ocupados = await vendidos(rifa.id);
+  const vendidos = await contarVendidos(rifa.id);
 
   const rifaCliente: RifaCliente = {
     id: rifa.id,
@@ -58,7 +58,7 @@ export default async function RifaPage({ params }: Props) {
 
   return (
     <SiteShell links={LINKS}>
-      <RifaProvider rifa={rifaCliente} vendidosIniciales={ocupados}>
+      <RifaProvider rifa={rifaCliente} vendidosIniciales={vendidos}>
         {/* Resumen */}
         <section className="raffle-hero">
           <div className="container raffle-top">
@@ -97,11 +97,11 @@ export default async function RifaPage({ params }: Props) {
         <section className="section" id="boletos" style={{ paddingTop: 30 }}>
           <div className="container">
             <h2 className="section-title">
-              ELIGE TUS <span>BOLETOS</span>
+              COMPRA TUS <span>BOLETOS</span>
             </h2>
             {activa ? (
               <>
-                <p className="section-sub">Compra un paquete o escoge tus números uno por uno</p>
+                <p className="section-sub">Elige un paquete o la cantidad de boletos que quieras</p>
                 <Compra />
               </>
             ) : (

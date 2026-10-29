@@ -1,14 +1,15 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useState } from "react";
 import {
   IconArrowRight,
   IconBrandWhatsapp,
   IconCircleCheck,
   IconConfetti,
   IconDice5,
+  IconMinus,
   IconPaperclip,
-  IconX,
+  IconPlus,
 } from "@tabler/icons-react";
 import { CopyButton } from "@/components/CopyButton";
 import { toast } from "@/components/Toaster";
@@ -21,63 +22,27 @@ import { useRifa } from "./RifaContext";
 import type { OrdenPublica } from "./tipos";
 
 const MAX_ARCHIVO = 4 * 1024 * 1024;
+const MAX_BOLETOS = 200; // igual que en /api/comprar
 const PAISES = [
   ["58", "VE"], ["57", "CO"], ["51", "PE"], ["56", "CL"],
   ["1", "US"], ["34", "ES"], ["52", "MX"], ["593", "EC"],
 ];
 
 export function Compra() {
-  const { rifa, vendidos, marcarVendidos, num } = useRifa();
-  const [seleccion, setSeleccion] = useState<Set<number>>(() => new Set());
-  const [soloLibres, setSoloLibres] = useState(false);
-  const [busqueda, setBusqueda] = useState("");
+  const { rifa, vendidos, setVendidos } = useRifa();
+  const disponibles = rifa.totalBoletos - vendidos;
+  const maximo = Math.min(MAX_BOLETOS, disponibles);
+  const [cantidad, setCantidad] = useState(1);
   const [compraAbierta, setCompraAbierta] = useState(false);
   const [ordenOk, setOrdenOk] = useState<OrdenPublica | null>(null);
   const [enviando, setEnviando] = useState(false);
   const [archivo, setArchivo] = useState<string | null>(null);
-  const gridRef = useRef<HTMLDivElement>(null);
 
-  const ordenados = useMemo(() => [...seleccion].sort((a, b) => a - b), [seleccion]);
-  const total = calcularTotal(rifa.precio, seleccion.size, rifa.paquetes);
+  const total = calcularTotal(rifa.precio, cantidad, rifa.paquetes);
+  const sinDescuento = rifa.precio * cantidad;
   const cerrarCompra = useCallback(() => setCompraAbierta(false), []);
   const cerrarOk = useCallback(() => setOrdenOk(null), []);
-
-  function alternar(n: number) {
-    setSeleccion((prev) => {
-      const s = new Set(prev);
-      if (s.has(n)) s.delete(n);
-      else s.add(n);
-      return s;
-    });
-  }
-
-  function elegirAlAzar(cantidad: number, reemplazar = false) {
-    const base = reemplazar ? new Set<number>() : new Set(seleccion);
-    const libres: number[] = [];
-    for (let i = 0; i < rifa.totalBoletos; i++) if (!vendidos.has(i) && !base.has(i)) libres.push(i);
-    if (!libres.length) return toast("No quedan boletos disponibles");
-    for (let k = 0; k < cantidad && libres.length; k++) {
-      base.add(libres.splice(Math.floor(Math.random() * libres.length), 1)[0]);
-    }
-    setSeleccion(base);
-  }
-
-  function buscar() {
-    const v = busqueda.trim();
-    if (!/^\d+$/.test(v) || +v >= rifa.totalBoletos) {
-      return toast(`Ingresa un número entre ${num(0)} y ${rifa.totalBoletos - 1}`);
-    }
-    const n = +v;
-    if (vendidos.has(n)) return toast(`El #${num(n)} ya fue vendido`);
-    setSeleccion((prev) => new Set(prev).add(n));
-    const b = gridRef.current?.querySelector<HTMLElement>(`[data-n="${n}"]`);
-    if (b) {
-      b.scrollIntoView({ behavior: "smooth", block: "center" });
-      b.classList.add("flash");
-      setTimeout(() => b.classList.remove("flash"), 1700);
-    }
-    toast(`#${num(n)} disponible y agregado`);
-  }
+  const elegir = (n: number) => setCantidad(Math.max(1, Math.min(maximo, Math.floor(n) || 1)));
 
   async function confirmar(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -99,24 +64,23 @@ export function Compra() {
         body.delete("comprobante");
       }
       body.set("rifa", rifa.id);
-      body.set("numeros", ordenados.join(","));
+      body.set("cantidad", String(cantidad));
 
       const res = await fetch("/api/comprar", { method: "POST", body });
       const data = await res.json();
 
-      if (res.status === 409 && Array.isArray(data.conflicto)) {
-        // Otro comprador tomó algunos números mientras tanto
-        const tomados = data.conflicto as number[];
-        marcarVendidos(tomados);
-        setSeleccion((prev) => new Set([...prev].filter((n) => !tomados.includes(n))));
+      if (res.status === 409 && typeof data.disponibles === "number") {
+        // Otros compradores se llevaron boletos mientras tanto
+        setVendidos(rifa.totalBoletos - data.disponibles);
+        setCantidad((c) => Math.max(1, Math.min(c, data.disponibles)));
         setCompraAbierta(false);
-        return toast(`Ya vendieron: ${tomados.map(num).join(", ")}. Elige otros.`);
+        return toast(data.error);
       }
       if (!res.ok) return toast(data.error ?? "No se pudo registrar la compra");
 
       const orden = data.orden as OrdenPublica;
-      marcarVendidos(orden.numeros);
-      setSeleccion(new Set());
+      setVendidos((v) => v + orden.cantidad);
+      setCantidad(1);
       form.reset();
       setArchivo(null);
       setCompraAbierta(false);
@@ -128,99 +92,72 @@ export function Compra() {
     }
   }
 
-  const celdas = [];
-  for (let i = 0; i < rifa.totalBoletos; i++) {
-    const vendido = vendidos.has(i);
-    if (soloLibres && vendido) continue;
-    celdas.push(
-      <button key={i} className={`num${seleccion.has(i) ? " sel" : ""}`} data-n={i} disabled={vendido}>
-        {num(i)}
-      </button>,
-    );
+  if (disponibles <= 0) {
+    return <p className="section-sub">¡Boletos agotados! Gracias a todos por participar.</p>;
   }
 
   return (
     <>
       <div className="packs">
-        {rifa.paquetes.map((p) => (
-          <button
-            key={p.cant}
-            className="pack"
-            onClick={() => {
-              elegirAlAzar(p.cant, true);
-              toast(`${p.cant} boletos elegidos a la suerte`);
-            }}
-          >
-            {p.tag && <span className="tag">{p.tag}</span>}
-            <b>{p.cant}</b>
-            <small>boletos</small>
-            <span className="price">{money(rifa.precio * p.cant * (1 - p.desc))}</span>
-          </button>
-        ))}
+        {rifa.paquetes
+          .filter((p) => p.cant <= maximo)
+          .map((p) => (
+            <button
+              key={p.cant}
+              type="button"
+              className={`pack${cantidad === p.cant ? " on" : ""}`}
+              aria-pressed={cantidad === p.cant}
+              onClick={() => setCantidad(p.cant)}
+            >
+              {p.tag && <span className="tag">{p.tag}</span>}
+              <b>{p.cant}</b>
+              <small>{p.cant === 1 ? "boleto" : "boletos"}</small>
+              <span className="price">{money(calcularTotal(rifa.precio, p.cant, rifa.paquetes))}</span>
+            </button>
+          ))}
       </div>
 
-      <div className="panel">
-        <div className="picker-tools">
-          <input
-            value={busqueda}
-            onChange={(e) => setBusqueda(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && buscar()}
-            inputMode="numeric"
-            maxLength={String(rifa.totalBoletos - 1).length}
-            placeholder="Busca tu número (ej. 777)"
-          />
-          <button className="btn btn-ghost" onClick={buscar}>
-            Buscar
-          </button>
-          <button className="btn btn-dark" onClick={() => elegirAlAzar(1)}>
-            <IconDice5 /> Elegir a la suerte
-          </button>
-          <button className="btn btn-ghost" onClick={() => setSeleccion(new Set())}>
-            Limpiar
-          </button>
+      <div className="panel cantidad">
+        <div className="cantidad-fila">
+          <label htmlFor="cantidad">¿Cuántos boletos quieres?</label>
+          <div className="stepper">
+            <button type="button" aria-label="Quitar un boleto" disabled={cantidad <= 1} onClick={() => elegir(cantidad - 1)}>
+              <IconMinus />
+            </button>
+            <input
+              id="cantidad"
+              type="number"
+              inputMode="numeric"
+              min={1}
+              max={maximo}
+              value={cantidad}
+              onChange={(e) => elegir(Number(e.target.value))}
+            />
+            <button type="button" aria-label="Agregar un boleto" disabled={cantidad >= maximo} onClick={() => elegir(cantidad + 1)}>
+              <IconPlus />
+            </button>
+          </div>
         </div>
-        <div className="legend">
-          <span><i className="l-free" />Disponible</span>
-          <span><i className="l-sel" />Seleccionado</span>
-          <span><i className="l-sold" />Vendido</span>
-          <label>
-            <input type="checkbox" checked={soloLibres} onChange={(e) => setSoloLibres(e.target.checked)} /> Mostrar
-            solo disponibles
-          </label>
-        </div>
-        <div
-          className="grid-numbers"
-          ref={gridRef}
-          onClick={(e) => {
-            const b = (e.target as HTMLElement).closest<HTMLButtonElement>(".num");
-            if (b && !b.disabled) alternar(Number(b.dataset.n));
-          }}
-        >
-          {celdas}
-        </div>
+        <p className="cantidad-nota">
+          <IconDice5 /> Tus números se asignan al azar y te llegan por WhatsApp cuando validemos tu pago.
+        </p>
       </div>
 
       <div className="cart">
-        <div style={{ flex: 1, minWidth: 200 }}>
-          <div className="cart-total">
-            Seleccionados: <b>{seleccion.size}</b> · Total: <b>{money(total)}</b>
-          </div>
-          <div className="cart-chips">
-            {ordenados.map((n) => (
-              <span key={n} title="Quitar" onClick={() => alternar(n)}>
-                {num(n)} <IconX />
-              </span>
-            ))}
-          </div>
+        <div className="cart-total">
+          {cantidad} boleto{cantidad === 1 ? "" : "s"} · Total: <b>{money(total)}</b>
+          {total < sinDescuento && <s>{money(sinDescuento)}</s>}
         </div>
-        <button className="btn btn-primary" disabled={seleccion.size === 0} onClick={() => setCompraAbierta(true)}>
+        <button className="btn btn-primary" onClick={() => setCompraAbierta(true)}>
           Continuar <IconArrowRight />
         </button>
       </div>
 
       <Modal abierto={compraAbierta} onCerrar={cerrarCompra}>
         <h3>CONFIRMA TU COMPRA</h3>
-        <p className="muted">Tus boletos quedan apartados al enviar el formulario mientras validamos el pago.</p>
+        <p className="muted">
+          Tus boletos quedan apartados al enviar el formulario. Te enviaremos tus números por WhatsApp cuando validemos el pago.
+        </p>
 
         <form onSubmit={confirmar}>
           <div className="form-step-title">1 · Datos personales</div>
@@ -296,8 +233,7 @@ export function Compra() {
 
           <div className="summary-box">
             <span>
-              {ordenados.length} boleto(s): {ordenados.slice(0, 8).map(num).join(", ")}
-              {ordenados.length > 8 ? "…" : ""}
+              {cantidad} boleto{cantidad === 1 ? "" : "s"} (números al azar)
             </span>
             <b>{money(total)}</b>
           </div>
@@ -323,7 +259,7 @@ export function Compra() {
             </div>
             <h3>¡BOLETOS REGISTRADOS!</h3>
             <p className="muted">
-              {ordenOk.nombre}, tus boletos quedaron apartados. Te confirmaremos por WhatsApp cuando validemos el pago.
+              {ordenOk.nombre}, tus boletos quedaron apartados. Te enviaremos tus números por WhatsApp cuando validemos el pago.
             </p>
             <div className="verify-result">
               <Ticket orden={ordenOk} />
@@ -333,7 +269,7 @@ export function Compra() {
               target="_blank"
               rel="noopener"
               href={waLink(
-                `Hola! Compré boletos de ${rifa.titulo} 🏆\nOrden: ${ordenOk.id}\nNombre: ${ordenOk.nombre}\nNúmeros: ${ordenOk.numeros.map(num).join(", ")}\nTotal: ${money(ordenOk.total ?? 0)}`,
+                `Hola! Compré boletos de ${rifa.titulo} 🏆\nOrden: ${ordenOk.id}\nNombre: ${ordenOk.nombre}\nBoletos: ${ordenOk.cantidad}\nTotal: ${money(ordenOk.total ?? 0)}`,
               )}
             >
               <IconBrandWhatsapp /> Enviar comprobante por WhatsApp

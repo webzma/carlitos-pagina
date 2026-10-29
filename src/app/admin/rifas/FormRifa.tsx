@@ -159,7 +159,7 @@ export function FormRifa({ rifa }: { rifa?: Rifa }) {
             defaultValue={v("paquetes", paquetesATexto(rifa))}
             placeholder={"2 | 0\n5 | 10 | -10%\n10 | 15 | MÁS VENDIDO\n20 | 20 | -20%"}
           />
-          <small className="muted">Vacío = paquetes por defecto (2, 5 con -10%, 10 con -15%, 20 con -20%).</small>
+          <small className="muted">Vacío = paquetes por defecto (2, 5 con -10%, 10 con -15%, 20 con -20%). La opción de 1 boleto siempre se ofrece.</small>
         </div>
       </fieldset>
 

@@ -1,13 +1,14 @@
 "use client";
 
-import { createContext, useCallback, useContext, useMemo, useState } from "react";
+import { createContext, useContext, useMemo, useState } from "react";
 import { digitosDe, pad } from "@/data/config";
 import type { RifaCliente } from "./tipos";
 
 interface RifaCtx {
   rifa: RifaCliente;
-  vendidos: Set<number>;
-  marcarVendidos: (numeros: number[]) => void;
+  /** Cantidad de boletos vendidos o apartados (los números no se envían al navegador) */
+  vendidos: number;
+  setVendidos: (n: number | ((prev: number) => number)) => void;
   /** Formatea un número de boleto con ceros a la izquierda (007) */
   num: (n: number) => string;
 }
@@ -20,18 +21,14 @@ export function RifaProvider({
   children,
 }: {
   rifa: RifaCliente;
-  vendidosIniciales: number[];
+  vendidosIniciales: number;
   children: React.ReactNode;
 }) {
-  const [vendidos, setVendidos] = useState(() => new Set(vendidosIniciales));
-  const marcarVendidos = useCallback(
-    (numeros: number[]) => setVendidos((prev) => new Set([...prev, ...numeros])),
-    [],
-  );
+  const [vendidos, setVendidos] = useState(vendidosIniciales);
   const valor = useMemo(() => {
     const digitos = digitosDe(rifa);
-    return { rifa, vendidos, marcarVendidos, num: (n: number) => pad(n, digitos) };
-  }, [rifa, vendidos, marcarVendidos]);
+    return { rifa, vendidos, setVendidos, num: (n: number) => pad(n, digitos) };
+  }, [rifa, vendidos]);
 
   return <Ctx.Provider value={valor}>{children}</Ctx.Provider>;
 }

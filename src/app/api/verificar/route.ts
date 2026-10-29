@@ -13,7 +13,9 @@ export async function GET(request: NextRequest) {
   const ordenes = (await buscarParaVerificador(rifa, q)).map((o) => ({
     id: o.id,
     nombre: enmascarar(o.nombre),
-    numeros: o.numeros,
+    cantidad: o.numeros.length,
+    // Los números se revelan solo cuando el pago está aprobado
+    ...(o.estado === "aprobado" ? { numeros: o.numeros } : {}),
     estado: o.estado,
   }));
   return Response.json({ ordenes });

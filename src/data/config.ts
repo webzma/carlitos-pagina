@@ -134,7 +134,11 @@ export const CUENTAS: Cuenta[] = [
 export const premiosDe = (r: Rifa): Premio[] =>
   r.premios ?? [{ lugar: "Premio único", icono: r.icono, titulo: r.descripcion, detalle: r.loteria }];
 
-export const paquetesDe = (r: Rifa): Paquete[] => r.paquetes ?? PAQUETES_DEFAULT;
+/** Paquetes de la rifa; siempre incluye la opción de comprar un solo boleto. */
+export function paquetesDe(r: Rifa): Paquete[] {
+  const paquetes = r.paquetes ?? PAQUETES_DEFAULT;
+  return paquetes.some((p) => p.cant === 1) ? paquetes : [{ cant: 1, desc: 0 }, ...paquetes];
+}
 
 export const money = (n: number) =>
   `${SITE.moneda}${Number(n).toLocaleString("es", { maximumFractionDigits: 2 })}`;

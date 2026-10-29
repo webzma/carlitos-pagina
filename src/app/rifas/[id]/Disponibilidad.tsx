@@ -6,14 +6,14 @@ export function Disponibles() {
   const { rifa, vendidos } = useRifa();
   return (
     <strong>
-      {rifa.totalBoletos - vendidos.size} / {rifa.totalBoletos}
+      {rifa.totalBoletos - vendidos} / {rifa.totalBoletos}
     </strong>
   );
 }
 
 export function Progreso() {
   const { rifa, vendidos } = useRifa();
-  const pct = Math.round((vendidos.size / rifa.totalBoletos) * 100);
+  const pct = Math.round((vendidos / rifa.totalBoletos) * 100);
   return (
     <>
       <div className="progress">

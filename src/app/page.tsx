@@ -22,7 +22,7 @@ const LINKS = [
 
 const PASOS = [
   ["Elige tu rifa", "Selecciona la rifa activa que más te guste."],
-  ["Escoge tus números", "Búscalos en la lista o deja que la suerte elija por ti."],
+  ["Elige cuántos boletos", "Desde 1 boleto o un paquete con descuento. Los números se asignan al azar."],
   ["Paga y sube tu comprobante", "Haz el Pago Móvil y adjunta la captura con la referencia."],
   ["¡Espera el sorteo!", "Verifica tus boletos y sigue el resultado con la lotería oficial."],
 ];
@@ -46,7 +46,7 @@ export default async function Home() {
               RIFA<span>EL TRIUNFO</span>
             </h1>
             <p>
-              Elige tus números de la suerte, paga por Pago Móvil y sigue el sorteo en vivo. ¡Tu próximo premio puede
+              Compra tus boletos, paga por Pago Móvil y sigue el sorteo en vivo. ¡Tu próximo premio puede
               estar a un boleto de distancia!
             </p>
             <div className="hero-actions">

@@ -13,7 +13,8 @@ export interface RifaCliente {
 export interface OrdenPublica {
   id: string;
   nombre: string;
-  numeros: number[];
+  cantidad: number;
+  numeros?: number[]; // solo cuando el pago está aprobado
   total?: number;
   estado: "pendiente" | "aprobado" | "rechazado";
 }
