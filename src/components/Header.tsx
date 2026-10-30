@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { IconMenu2, IconTrophy, IconX } from "@tabler/icons-react";
+import { IconLock, IconMenu2, IconTrophy, IconX } from "@tabler/icons-react";
 
 export type NavLink = { href: string; label: string };
 
@@ -29,6 +29,9 @@ export function Header({ links }: { links: NavLink[] }) {
               {l.label}
             </a>
           ))}
+          <Link href="/admin" className="nav-admin" onClick={() => setAbierto(false)}>
+            <IconLock /> Admin
+          </Link>
         </nav>
       </div>
     </header>
