@@ -12,7 +12,6 @@ import { Disponibles, Progreso } from "./Disponibilidad";
 import { Countdown } from "./Countdown";
 import { Compra } from "./Compra";
 import { Verificador } from "./Verificador";
-import { Sorteador } from "./Sorteador";
 import type { RifaCliente } from "./tipos";
 
 export const dynamic = "force-dynamic";
@@ -146,7 +145,6 @@ export default async function RifaPage({ params }: Props) {
         </section>
 
         <Verificador />
-        <Sorteador />
         <Accounts subtitle="¡Mucha suerte!" />
       </RifaProvider>
     </SiteShell>
