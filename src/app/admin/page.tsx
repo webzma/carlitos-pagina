@@ -36,7 +36,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Search
   const sp = await searchParams;
   const param = (k: string) => (typeof sp[k] === "string" ? (sp[k] as string) : "");
 
-  if (!(await esAdmin())) return <Login error={param("error") !== ""} />;
+  if (!(await esAdmin())) return <Login error={param("error")} />;
 
   const rifa = param("rifa");
   const estado = ESTADOS.includes(param("estado") as Estado) ? (param("estado") as Estado) : undefined;
@@ -340,17 +340,22 @@ function fechaVE(s: string) {
   });
 }
 
-function Login({ error }: { error: boolean }) {
+function Login({ error }: { error: string }) {
   return (
     <AdminFrame logueado={false}>
       <main className="container">
         <form className="login-box" action={login}>
           <h1 style={{ fontFamily: "var(--display)", fontSize: "2.2rem", letterSpacing: 1 }}>ACCESO ADMIN</h1>
-          <p>Ingresa la contraseña para ver las órdenes y validar pagos.</p>
-          {error && <p className="error">Contraseña incorrecta</p>}
+          <p>Ingresa tu correo y contraseña para ver las órdenes y validar pagos.</p>
+          {error === "config" && <p className="error">Falta configurar ADMIN_EMAIL y ADMIN_PASSWORD en el servidor</p>}
+          {error && error !== "config" && <p className="error">Correo o contraseña incorrectos</p>}
           <div className="field" style={{ textAlign: "left" }}>
-            <label>Contraseña</label>
-            <input type="password" name="password" required autoFocus autoComplete="current-password" />
+            <label htmlFor="email">Correo</label>
+            <input id="email" type="email" name="email" required autoFocus autoComplete="username" />
+          </div>
+          <div className="field" style={{ textAlign: "left" }}>
+            <label htmlFor="password">Contraseña</label>
+            <input id="password" type="password" name="password" required autoComplete="current-password" />
           </div>
           <button className="btn btn-primary btn-block">Entrar</button>
         </form>

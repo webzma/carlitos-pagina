@@ -16,7 +16,14 @@ function iguales(a: string, b: string) {
   return timingSafeEqual(ha, hb);
 }
 
-export const passwordValida = (password: string) => iguales(password, env.ADMIN_PASSWORD);
+/** El correo no distingue mayúsculas; ambos datos se comparan siempre para no revelar cuál falló. */
+export function credencialesValidas(email: string, password: string) {
+  const correoOk = iguales(email.trim().toLowerCase(), env.ADMIN_EMAIL.trim().toLowerCase());
+  const claveOk = iguales(password, env.ADMIN_PASSWORD);
+  return correoOk && claveOk;
+}
+
+export const loginConfigurado = () => Boolean(process.env.ADMIN_EMAIL && process.env.ADMIN_PASSWORD);
 
 export async function iniciarSesion() {
   const expira = String(Date.now() + DURACION_MS);

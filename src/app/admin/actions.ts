@@ -1,11 +1,14 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { cerrarSesion, esAdmin, iniciarSesion, passwordValida } from "@/lib/auth";
+import { cerrarSesion, credencialesValidas, esAdmin, iniciarSesion, loginConfigurado } from "@/lib/auth";
 import { cambiarEstado, ESTADOS, type Estado } from "@/lib/db";
 
 export async function login(formData: FormData) {
-  if (!passwordValida(String(formData.get("password") ?? ""))) redirect("/admin?error=1");
+  if (!loginConfigurado()) redirect("/admin?error=config");
+  const email = String(formData.get("email") ?? "");
+  const password = String(formData.get("password") ?? "");
+  if (!credencialesValidas(email, password)) redirect("/admin?error=1");
   await iniciarSesion();
   redirect("/admin");
 }

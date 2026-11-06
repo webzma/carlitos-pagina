@@ -9,6 +9,10 @@ function requerida(nombre: string): string {
 }
 
 export const env = {
+  /** Correo con el que entra el administrador (junto con ADMIN_PASSWORD) */
+  get ADMIN_EMAIL() {
+    return requerida("ADMIN_EMAIL");
+  },
   get ADMIN_PASSWORD() {
     return requerida("ADMIN_PASSWORD");
   },
